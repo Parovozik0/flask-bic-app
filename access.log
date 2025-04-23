@@ -1,0 +1,9 @@
+127.0.0.1 - - [19/Sep/2024:16:13:40 +0300] "GET / HTTP/1.1" 200 513
+127.0.0.1 - - [19/Sep/2024:16:13:40 +0300] "GET /favicon.ico HTTP/1.1" 404 196
+127.0.0.1 - - [19/Sep/2024:16:13:46 +0300] "GET /templ%d0%b0tes/ HTTP/1.1" 200 366
+127.0.0.1 - - [19/Sep/2024:16:13:48 +0300] "GET /templ%d0%b0tes/container.html HTTP/1.1" 200 3378
+127.0.0.1 - - [19/Sep/2024:16:13:48 +0300] "GET /static/css/style.css HTTP/1.1" 200 4636
+127.0.0.1 - - [19/Sep/2024:16:13:48 +0300] "GET /static/js/main.js HTTP/1.1" 200 304
+127.0.0.1 - - [19/Sep/2024:16:13:48 +0300] "GET /pics/question-mark.png HTTP/1.1" 200 16440
+127.0.0.1 - - [19/Sep/2024:16:58:01 +0300] "GET /templ%d0%b0tes/container.html HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jan/2025:22:22:24 +0300] "GET /favicon.ico HTTP/1.1" 404 196

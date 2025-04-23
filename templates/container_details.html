@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детали контейнеров</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center; /* Изменено на центрирование по вертикали */
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+            padding-top: 20px;
+        }
+
+        .container-details {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 90%; /* Увеличена ширина */
+            max-width: 1200px; /* Увеличено максимальное значение ширины */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px; /* Добавлен отступ сверху */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 18px;
+            text-align: left;
+        }
+
+        table th, table td {
+            padding: 12px;
+            border: 1px solid #ddd;
+        }
+
+        table th {
+            background-color: #333;
+            color: #fff;
+            position: sticky; /* Заголовки будут оставаться видимыми при прокрутке */
+            top: 0;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-details">
+    <h1>Детали контейнеров</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Номер контейнера</th>
+                <th>Букинг</th>
+                <th>КП</th>
+                <th>Локация</th>
+                <th>Заметки</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for container in containers %}
+            <tr>
+                <td>{{ container.number }}</td>
+                <td>{{ container.booking }}</td>
+                <td>{{ container.KP }}</td>
+                <td>{{ container.location }}</td>
+                <td>{{ container.notes }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

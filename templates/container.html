@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}
+<title>Контейнеры</title>
+{% endblock %}
+
+{% block main_content %}
+<div class="main-content">
+    <div class="upside">
+        <div class="header">
+            <h1>Контейнеры: {{ container_count }}</h1>
+            <div class="search-container">
+                <button class="refresh" style="padding-bottom: 5px;">⟳</button>
+                <div class="input-container">
+                    <input type="text" id="filter-container-number" class="search-input" placeholder="Номер контейнера" style="font-size: 14px;" size="30">
+                </div>
+                <button class="filter" style="margin-left: 5px;" onclick="toggleFilter()">
+                    <img src="{{ url_for('static', filename='pics/filter.png') }}" width="29" height="29" alt="Filter">
+                </button>
+                <div class="filter-container" id="filter-container">
+                    <input type="text" id="filter-kp-number" placeholder="Номер КП">
+                    <input type="text" id="filter-booking-number" placeholder="Номер букинга">
+                    <input type="text" id="filter-location" placeholder="Локация">
+                    <input type="text" id="filter-notes" placeholder="Заметки">
+                    <input type="date" id="filter-delivery-date" placeholder="Фильтр по дате сдачи">
+                    <input type="date" id="filter-pickup-date" placeholder="Фильтр по дате pick up">
+                </div>
+                <div class="profile"></div>
+            </div>
+        </div>
+    </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 260px;">Номер контейнера
+                        <select id="container-type-select" class="container-type-select">
+                            <option value="40/20">40/20</option>
+                            <option value="40">40</option>
+                            <option value="20">20</option>
+                        </select>
+                    </th>
+                    <th>КП</th>
+                    <th>Букинг</th>
+                    <th style="width: 260px;">Статус</th>
+                    <th>Локация</th>
+                    <th>Дата сдачи</th>
+                    <th>Дата pick up</th>
+                    <th>Заметки</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for container in containers %}
+                <tr data-number="{{ container.number }}">
+                    <td style="width: 260px;">{{ container.number }}</td>
+                    <td>{{ container.KP }}</td>
+                    <td>{{ container.booking }}</td>
+                    <td style="width: 260px; font-weight: 700; background: #0D1B2A; color: #fff; text-align: center;">
+                        {% if container.status == 'Направлен в Китай' %}
+                            {{ container.status }}  &nbsp;🇷🇺➡️🇨🇳
+                        {% elif container.status == 'В Китае' %}
+                            {{ container.status }}  &nbsp;🇨🇳
+                        {% elif container.status == 'Направлен в Россию' %}
+                            {{ container.status }}  &nbsp;🇨🇳➡️🇷🇺
+                        {% elif container.status == 'В России' %}
+                            {{ container.status }}  &nbsp;🇷🇺
+                        {% else %}
+                            {{ container.status }}
+                        {% endif %}
+                    </td>
+                    <td>{{ container.location }}</td>
+                    <td>{{ container.delivery_date }}</td>
+                    <td>{{ container.pickup_date }}</td>
+                    <td>{{ container.notes }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="buttons">
+        <button class="add">+ Добавить</button>
+        <button class="delete">✖ Удалить</button>
+        <button class="edit">✏ Изменить</button>
+        <button class="inventory">𖡤 Добавить из таблицы</button>
+    </div>
+
+    <!-- Модальные окна остаются без изменений -->
+    <div class="modal" id="add-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить контейнеры</h2>
+                <button class="close">×</button>
+            </div>
+            <div class="modal-body">
+                <label for="container-numbers">Номера контейнеров (по одному на строку или через запятые)</label>
+                <textarea id="container-numbers" placeholder="Введите номера контейнеров, например: RXTU4541314, RXTU4541320 или каждый на новой строке" rows="5"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel">Отмена</button>
+                <button class="save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="delete-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Удалить контейнеры</h2>
+                <button class="close">×</button>
+            </div>
+            <div class="modal-body">
+                <label for="delete-container-numbers">Номера контейнеров (по одному на строку или через запятые)</label>
+                <textarea id="delete-container-numbers" placeholder="Введите номера контейнеров, например: RXTU4541314, RXTU4541320 или каждый на новой строке" rows="5"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel">Отмена</button>
+                <button class="save">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="edit-numbers-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Выбор контейнеров для редактирования</h2>
+                <button class="close">×</button>
+            </div>
+            <div class="modal-body">
+                <label for="edit-container-numbers">Номера контейнеров (по одному на строке или через запятые)</label>
+                <textarea id="edit-container-numbers" placeholder="Введите номера контейнеров, например: RXTU4541314, RXTU4541320 или каждый на новой строке" rows="5"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel">Отмена</button>
+                <button class="next">Далее</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="edit-data-modal">
+        <div class="modal-content" style="max-width: 1200px; width: 95%;">
+            <div class="modal-header">
+                <h2>Редактирование контейнеров</h2>
+                <button class="close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="same-data-checkbox" class="custom-checkbox" style="width: 25px; margin-top: 15px;">
+                    <label for="same-data-checkbox">Применить одинаковые данные ко всем контейнерам</label>
+                </div>
+                <div class="edit-table-wrapper">
+                    <table class="edit-table">
+                        <thead>
+                            <tr>
+                                <th>Номер контейнера</th>
+                                <th>КП</th>
+                                <th>Букинг</th>
+                                <th>Статус</th>
+                                <th>Локация</th>
+                                <th>Дата сдачи</th>
+                                <th>Дата pick up</th>
+                                <th>Заметки</th>
+                            </tr>
+                        </thead>
+                        <tbody id="edit-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div id="error-message"></div>
+                <button class="cancel">Отмена</button>
+                <button class="save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="inventory-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить из таблицы</h2>
+                <button class="close">×</button>
+            </div>
+            <div class="modal-body">
+                <label for="inventory-kp-number">Номер КП (необязательно)</label>
+                <input type="text" id="inventory-kp-number" placeholder="Введите номер КП">
+                <label for="inventory-file">Загрузите Excel файл (номера контейнеров в первом столбце)</label>
+                <input type="file" id="inventory-file" accept=".xlsx, .xls">
+            </div>
+            <div class="modal-footer">
+                <button class="cancel">Отмена</button>
+                <button class="save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="notes-popup" class="notes-popup">
+    <textarea id="notes-popup-text" readonly></textarea>
+</div>
+{% endblock %}

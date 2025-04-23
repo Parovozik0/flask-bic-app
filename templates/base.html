@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% block title %}
+    {% endblock %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base_style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Handsontable available:', typeof Handsontable !== 'undefined');
+        });
+    </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo"><img src="{{ url_for('static', filename='pics/logo.png') }}" width="200" height="90"></div>
+        <nav>
+            <ul>
+                <li data-page="container"><span><img src="{{ url_for('static', filename='pics/container.png') }}" width="49" height="49"></span> Контейнер</li>
+                <li data-page="kp"><span><img src="{{ url_for('static', filename='pics/KP.png') }}" width="49" height="49"></span> КП</li>
+                <li data-page="buking"><span><img src="{{ url_for('static', filename='pics/booking.png') }}" width="49" height="49"></span> Букинг</li>
+            </ul>
+        </nav>
+        <div class="exit"><span><img src="{{ url_for('static', filename='pics/exit.png') }}" width="49" height="49"></span> Выход</div>
+    </div>
+    {% block main_content %}
+    {% endblock %}
+    <img src="{{ url_for('static', filename='pics/question_mark.png') }}" width="60" height="60" class="question">
+</body>
+</html>

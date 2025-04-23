@@ -1,0 +1,323 @@
+body {
+    /* Основные стили для шапки и вкладок */
+ overflow: hidden;
+font-family: Arial, sans-serif;
+margin: 0;
+padding: 0;
+display: flex;
+flex-direction: column;
+height: 100vh;
+}
+
+.tabs {
+display: flex;
+background-color: black;
+color: #fff;
+padding: 15px;
+margin-left: -5px;
+}
+
+.sidebar button{
+width: 90%;
+}
+
+.container {
+display: flex;
+flex: 1; /* Основной контент заполняет оставшееся пространство */
+}
+
+.sidebar {
+margin-top: 87px;
+width: 230px;
+background-color: black;
+padding: 10px;
+max-height: 78.5vh;
+overflow-y: scroll;
+}
+
+.button {
+flex: 1;
+padding: 10px;
+color: #fff;
+margin: 8px; /* Добавлен правый отступ */
+background-color: #000; /* Черный фон */
+border: none;
+border-radius: 8px;
+cursor: pointer;
+text-align: center;
+font-size: 25px;
+transition: background 0.3s, transform 0.2s;
+box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Тень для плиток */
+overflow: hidden; 
+}
+
+.BIC {
+    position: absolute;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+
+.button:active {
+transform: scale(0.98);
+}
+
+.button.active {
+background-color: darkblue;
+}
+
+.number-input button{
+width: 350px;
+margin-left: 30px;
+}
+
+/* Стили для основного контента */
+.right-part {
+margin-left: 5px; /* Учитывает ширину сайдбара */
+width: calc(100% - 250px); /* Заполняет оставшееся пространство */
+box-sizing: border-box; /* Включает padding в ширину */
+
+}
+
+.hidden_input{
+    display: none;
+}
+.number-input{
+display: flex; /* Используем Flexbox для выравнивания */
+align-items: flex-start; /* Выравнивание по верхнему краю */
+flex-direction: column;
+margin-left: 80px;
+}
+
+.label {
+display: block;
+font-family: 'Arial', serif; /* Используем другой шрифт для текста */
+font-size: 2em; /* Увеличенный размер шрифта */
+font-weight: bold; /* Жирный текст */
+color: #333; /* Темный цвет текста */
+text-transform: uppercase; /* Преобразование текста в верхний регистр */
+letter-spacing: 2px; /* Увеличенное расстояние между буквами */
+text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2); /* Легкая тень для текста */
+line-height: 1.4; /* Межстрочный интервал */
+margin: 20px 0 20px 20px; /* Отступы сверху и снизу */
+text-align: center;
+overflow-wrap: break-word;
+}
+
+.fixed-textarea {
+width: 350px;  /* Фиксированная ширина */
+height: 600px; /* Фиксированная высота */
+resize: none;  /* Отключение возможности изменения размера */
+border: 3px solid #ccc; /* Граница */
+margin-left: 20px;
+padding: 10px; /* Внутренние отступы */
+font-family: Arial, sans-serif; /* Шрифт */
+font-size: 26px; /* Размер шрифта */
+line-height: 1.5; /* Межстрочный интервал */
+}
+
+.input-search input{
+height: 25px;
+width: 200px;
+overflow-wrap: break-word;
+}
+
+.main-content{
+display: flex;
+flex-direction: row
+}
+
+.input-container{
+margin-left: 70px;
+
+display: flex;
+flex-direction: row;
+}
+
+.blackSquare {
+width: 249px;
+height: 89px;
+background-color: black;
+color: white;
+position: absolute;
+bottom: 0;
+left: 0;
+border-top: 2px solid white;
+text-align: center;
+justify-content: center;
+align-items: center;
+font-size: 30px;
+}
+
+.black-square2 {
+    width: 249px; /* Ширина квадрата соответствует ширине изображения */
+    height: 87px; /* Высота квадрата соответствует высоте изображения */
+    background-color: black;
+    position: absolute;
+}
+
+.buttons{
+display: grid;
+grid-template-columns: repeat(2, auto);
+gap: 10px; /* Расстояние между кнопками */
+position: fixed; /* Делает контейнер не привязанным к родителям */
+top: 500px; /* Примерное расположение по вертикали */
+left: 1304px; /* Примерное расположение по горизонтали */
+transform: translate(-50%, -50%); /* Центрирует контейнер */
+
+}
+
+.buttons button{
+width: 300px;
+height: 100px;
+font-size: 28px;
+}
+
+select {
+background-color: black;
+color: white;
+width: 249px;
+height: 87px;
+padding: 5px;
+font-size: 30px;
+border: 1px solid #ccc;
+border-radius: 5px;
+position: absolute;
+top: 0;
+text-align: center;
+cursor: pointer;
+}
+
+.question{
+position: absolute;
+right: 0;
+bottom: 0;
+padding: 15px;
+cursor: pointer;
+}
+
+.alert {
+position: fixed; /* Фиксированное положение */
+bottom: 20px; /* Расстояние от нижнего края */
+right: 20px; /* Расстояние от правого края */
+padding: 15px;
+margin: 10px;
+border: 1px solid #000;
+border-radius: 5px;
+background-color: #fff;
+box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+z-index: 1000; /* Убедитесь, что окно поверх других элементов */
+display: none; /* Скрыто по умолчанию */
+}
+
+.success {
+    color: #000; /* Черный текст для успеха */
+}
+
+.error {
+    color: #000; /* Черный текст для ошибок */
+}
+
+.close {
+    cursor: pointer;
+    float: right;
+    font-size: 20px;
+    color: #000; /* Черный цвет крестика */
+}
+
+.suggestions-list {
+    border: 1px solid #ccc;
+    max-height: 150px;
+    margin-left: 30px;
+    overflow-y: auto;
+    width: 200px;
+    display: none; /* Скрываем по умолчанию */
+}
+
+.suggestion-item {
+    padding: 10px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.suggestion-item:hover {
+    background-color: #f0f0f0;
+}
+
+#openModal {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    position: relative;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Стили модального окна */
+.modal {
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background-color: rgba(0, 0, 0, 0.5); /* Затемнённый фон */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* Контент модального окна */
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    width: 400px;
+    max-width: 90%;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+/* Стиль для закрытия модального окна */
+.modal-close {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+/* Стиль для кнопки внутри модального окна */
+.btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+/* Стиль для текстбокса и инпута */
+.form-control {
+    width: 95%;
+    padding: 8px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+textarea {
+    resize: vertical;
+}
