@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template, url_for, redirect, flash
 import os
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from config import Config
 from models import *
