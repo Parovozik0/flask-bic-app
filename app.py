@@ -8,10 +8,16 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 import re
 import pandas as pd
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 app.config.from_object(Config)
+
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+print("SQLALCHEMY_DATABASE_URI:", app.config['SQLALCHEMY_DATABASE_URI'])
+
 db.init_app(app)
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -303,6 +309,9 @@ def add_container():
                         errors.append(f"Контейнер {formatted_number}: уже существует")
 
         db.session.commit()
+        # Отправляем событие всем клиентам о том, что контейнеры изменились
+        if added_count > 0:
+            socketio.emit('containers_updated', {'action': 'add'})
         return jsonify({
             'success': added_count,
             'failed': failed_count,
@@ -419,6 +428,9 @@ def delete_containers():
                         errors.append(f"Контейнер {formatted_number}: не найден в базе")
 
         db.session.commit()
+        # Отправляем событие всем клиентам о том, что контейнеры изменились
+        if deleted_count > 0:
+            socketio.emit('containers_updated', {'action': 'delete'})
         return jsonify({
             'success': deleted_count,
             'failed': failed_count,
@@ -523,7 +535,9 @@ def update_container():
         )
         
         db.session.commit()
-
+        # Отправляем событие всем клиентам о том, что контейнеры изменились
+        if result.rowcount > 0:
+            socketio.emit('containers_updated', {'action': 'edit'})
         # Формируем статус с флагами для ответа
         def status_with_flags(status):
             if status == 'Направлен в Китай':
@@ -974,4 +988,4 @@ def add_booking_from_inventory():
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

@@ -1,6 +1,7 @@
 // Глобальные переменные
 let currentPage = 'container';
 let editItems = []; // Универсальная переменная для хранения данных редактирования (контейнеры, КП, букинги)
+let selectedCells = new Set(); // глобальная переменная для выделенных ячеек
 
 // Навигация между страницами
 function navigateTo(page) {
@@ -117,21 +118,47 @@ async function updateTable(filters = {}) {
         const data = await response.json();
         if (data.error) throw new Error(data.error);
 
-        let filteredItems = currentPage === 'container' ? data.containers : 
-                           currentPage === 'kp' ? data.kps : data.bookings;
+        let filteredItems = currentPage === 'container' ? data.containers :
+            currentPage === 'kp' ? data.kps : data.bookings;
 
         if (Object.keys(filters).length > 0) {
             filteredItems = filteredItems.filter(item => {
-                const number = cleanValue(item.number).toLowerCase();
-                const location = cleanValue(item.location).toLowerCase();
                 const notes = cleanValue(item.notes).toLowerCase();
                 const kp = currentPage === 'container' ? cleanValue(item.KP).toLowerCase() : '';
                 const booking = currentPage === 'container' ? cleanValue(item.booking).toLowerCase() : '';
                 const deliveryDate = currentPage === 'container' ? formatDateToISO(item.delivery_date) : '';
                 const pickupDate = currentPage === 'container' ? formatDateToISO(item.pickup_date) : '';
+                const number = cleanValue(item.number).toLowerCase();
+                const location = cleanValue(item.location).toLowerCase();
+                const status = currentPage === 'container' ? cleanValue(item.status).toLowerCase() : '';
+
+                // Новый блок: поддержка фильтрации по нескольким номерам через пробел
+                let numberMatch = true;
+                if (filters.number) {
+                    const numbersArray = filters.number
+                        .split(/\s+/)
+                        .map(n => n.trim().toLowerCase())
+                        .filter(n => n.length > 0);
+
+                    if (numbersArray.length > 1) {
+                        // Если введено несколько номеров — ищем точное совпадение с любым из них
+                        numberMatch = numbersArray.includes(number);
+                    } else if (numbersArray.length === 1) {
+                        // Если введён только один номер или часть — ищем по вхождению (подстроке)
+                        numberMatch = number.includes(numbersArray[0]);
+                    }
+                }
+
+                let statusMatch = true;
+                if (currentPage === 'container' && filters.status && filters.status.trim() !== '') {
+                    const statusClean = status.replace(/[^\w\sА-Яа-яЁё-]/g, '').trim().toLowerCase();
+                    const filterStatusClean = filters.status.trim().toLowerCase();
+                    statusMatch = statusClean === filterStatusClean;
+                }
 
                 return (
-                    (!filters.number || number.includes(filters.number.toLowerCase())) &&
+                    numberMatch &&
+                    statusMatch &&
                     (currentPage !== 'container' || !filters.kpNumber || kp.includes(filters.kpNumber.toLowerCase())) &&
                     (currentPage !== 'container' || !filters.bookingNumber || booking.includes(filters.bookingNumber.toLowerCase())) &&
                     (!filters.location || location.includes(filters.location.toLowerCase())) &&
@@ -168,7 +195,7 @@ async function updateTable(filters = {}) {
                     default:
                         statusClass = '';
                 }
-        
+
                 return `
                     <tr data-number="${cleanValue(item.number)}">
                         <td style="width: 260px;">${cleanValue(item.number)}</td>
@@ -259,7 +286,8 @@ function attachFilterListeners() {
         location: document.getElementById('filter-location'),
         notes: document.getElementById('filter-notes'),
         deliveryDate: document.getElementById('filter-delivery-date'),
-        pickupDate: document.getElementById('filter-pickup-date')
+        pickupDate: document.getElementById('filter-pickup-date'),
+        status: document.getElementById('filter-status') // <--- добавьте эту строку!
     };
 
     Object.values(filterInputs).forEach(input => {
@@ -272,7 +300,8 @@ function attachFilterListeners() {
                     location: filterInputs.location?.value,
                     notes: filterInputs.notes?.value,
                     deliveryDate: filterInputs.deliveryDate?.value,
-                    pickupDate: filterInputs.pickupDate?.value
+                    pickupDate: filterInputs.pickupDate?.value,
+                    status: currentPage === 'container' ? filterInputs.status?.value : '' // <--- и эту строку!
                 };
                 updateTable(filters);
             });
@@ -313,23 +342,63 @@ function attachNotesPopupListeners() {
     const popup = document.getElementById('notes-popup');
     const popupText = document.getElementById('notes-popup-text');
 
+    let lastCell = null;
+    let lastRect = null;
+    let repositionPopup = null;
+
+    function hidePopup() {
+        popup.style.display = 'none';
+        lastCell = null;
+        lastRect = null;
+        repositionPopup = null;
+    }
+
     notesCells.forEach(cell => {
         cell.addEventListener('click', (e) => {
             const rect = cell.getBoundingClientRect();
-            popup.style.left = `${rect.left + window.scrollX}px`;
-            popup.style.top = `${rect.bottom + window.scrollY}px`;
+            lastCell = cell;
+            lastRect = rect;
             popupText.value = cell.textContent.trim();
+            popup.style.width = `${rect.width}px`;
+            repositionPopup = function () {
+                const newRect = lastCell.getBoundingClientRect();
+                popup.style.left = `${newRect.left + window.scrollX}px`;
+                popup.style.top = `${newRect.bottom + window.scrollY}px`;
+                popup.style.width = `${newRect.width}px`;
+            };
+            repositionPopup();
             popup.style.display = 'block';
             e.stopPropagation();
 
             document.addEventListener('click', function handler(e) {
                 if (!popup.contains(e.target) && !cell.contains(e.target)) {
-                    popup.style.display = 'none';
+                    hidePopup();
                     document.removeEventListener('click', handler);
                 }
             }, { once: true });
         });
     });
+
+    // При изменении размера окна перепозиционируем popup
+    window.addEventListener('resize', () => {
+        if (popup.style.display === 'block' && repositionPopup) {
+            repositionPopup();
+        }
+    });
+
+    // При прокрутке tbody скрываем popup
+    const tbody = document.querySelector('.table-container tbody');
+    if (tbody) {
+        tbody.addEventListener('scroll', () => {
+            if (popup.style.display === 'block') {
+                hidePopup();
+            }
+            const editPopup = document.getElementById('edit-notes-popup');
+            if (editPopup && editPopup.style.display === 'block') {
+                editPopup.style.display = 'none';
+            }
+        });
+    }
 }
 
 function showNotification(result) {
@@ -397,7 +466,7 @@ async function renderEditTable(items) {
     const bookingNumbers = currentPage === 'container' ? await fetchBookingNumbers() : [];
 
     const statusOptions = [
-        { value: "Направлен в Китай", text: "Направлен в Китай 🇷🇺➡️🇨🇳" },
+        { value: "Направлен в Китай", text: "Направлен в Китай" },
         { value: "В Китае", text: "В Китае" },
         { value: "Направлен в Россию", text: "Направлен в Россию" },
         { value: "В России", text: "В России" }
@@ -598,16 +667,28 @@ async function renderEditTable(items) {
                 const bookingCell = row.querySelector('.booking-cell');
                 const selectedStatus = e.target.value;
 
-                kpCell.setAttribute('contenteditable', selectedStatus === "Направлен в Китай");
-                bookingCell.setAttribute('contenteditable', selectedStatus === "Направлен в Китай");
+                const editable = selectedStatus === "Направлен в Китай";
+                kpCell.setAttribute('contenteditable', editable);
+                bookingCell.setAttribute('contenteditable', editable);
 
-                if (selectedStatus !== "Направлен в Китай") {
+                // Для визуального эффекта сразу обновляем стили
+                if (!editable) {
                     kpCell.textContent = '';
                     bookingCell.textContent = '';
+                    kpCell.blur && kpCell.blur();
+                    bookingCell.blur && bookingCell.blur();
                 }
 
                 updateStatusSelectStyle(e.target); // Обновляем стиль при изменении
             });
+            // При инициализации тоже выставляем правильный contenteditable
+            const row = select.closest('tr');
+            const kpCell = row.querySelector('.kp-cell');
+            const bookingCell = row.querySelector('.booking-cell');
+            const selectedStatus = select.value;
+            const editable = selectedStatus === "Направлен в Китай";
+            kpCell.setAttribute('contenteditable', editable);
+            bookingCell.setAttribute('contenteditable', editable);
         });
     }
 
@@ -632,13 +713,7 @@ async function renderEditTable(items) {
                     const pickupDate = row.querySelector('.pickup-date')?.textContent.trim() || null;
                     const notes = row.querySelector('.notes-cell')?.textContent.trim() || '';
 
-                    if (status === "Направлен в Китай" && kp && !kpNumbers.includes(kp)) {
-                        errors.push(`КП ${kp} не существует`);
-                    }
-                    if (status === "Направлен в Китай" && booking && !bookingNumbers.includes(booking)) {
-                        errors.push(`Букинг ${booking} не существует`);
-                    }
-
+                    // Убрана обязательность КП и Букинга
                     if (kp) formData.append('kp', kp);
                     if (booking) formData.append('booking', booking);
                     formData.append('status', status);
@@ -676,7 +751,7 @@ async function renderEditTable(items) {
             for (const update of updates) {
                 try {
                     const endpoint = currentPage === 'container' ? '/update_container' :
-                                    currentPage === 'kp' ? '/update_kp' : '/update_booking';
+                        currentPage === 'kp' ? '/update_kp' : '/update_booking';
                     const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -713,6 +788,9 @@ async function renderEditTable(items) {
             }
         };
     }
+
+    // Включаем выделение и копирование для таблицы редактирования
+    attachTableCellListeners('.edit-table');
 }
 
 function updateStatusSelectStyle(select) {
@@ -845,11 +923,11 @@ function attachModalListeners() {
         addCloseElements.forEach(el => el.onclick = () => addModal.style.display = 'none');
         if (addSaveButton) {
             addSaveButton.onclick = async () => {
-                const textareaId = currentPage === 'container' ? 'container-numbers' : 
-                                 currentPage === 'kp' ? 'kp-numbers' : 'booking-numbers';
+                const textareaId = currentPage === 'container' ? 'container-numbers' :
+                    currentPage === 'kp' ? 'kp-numbers' : 'booking-numbers';
                 const numbers = document.getElementById(textareaId).value;
-                const endpoint = currentPage === 'container' ? '/add_container' : 
-                                currentPage === 'kp' ? '/add_kp' : '/add_booking';
+                const endpoint = currentPage === 'container' ? '/add_container' :
+                    currentPage === 'kp' ? '/add_kp' : '/add_booking';
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -869,8 +947,8 @@ function attachModalListeners() {
             deleteSaveButton.onclick = async () => {
                 const textareaId = `delete-${currentPage}-numbers`;
                 const numbers = document.getElementById(textareaId).value;
-                const endpoint = currentPage === 'container' ? '/delete_containers' : 
-                                currentPage === 'kp' ? '/delete_kps' : '/delete_bookings';
+                const endpoint = currentPage === 'container' ? '/delete_containers' :
+                    currentPage === 'kp' ? '/delete_kps' : '/delete_bookings';
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -890,8 +968,8 @@ function attachModalListeners() {
             editNextButton.onclick = async () => {
                 const textareaId = `edit-${currentPage}-numbers`;
                 const numbers = document.getElementById(textareaId).value;
-                const endpoint = currentPage === 'container' ? '/get_container_data' : 
-                                currentPage === 'kp' ? '/get_kp_data' : '/get_booking_data';
+                const endpoint = currentPage === 'container' ? '/get_container_data' :
+                    currentPage === 'kp' ? '/get_kp_data' : '/get_booking_data';
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -907,17 +985,25 @@ function attachModalListeners() {
     }
 
     if (editDataModal) {
-        editDataCloseElements.forEach(el => el.onclick = () => editDataModal.style.display = 'none');
+        editDataCloseElements.forEach(el => el.onclick = () => {
+            editDataModal.style.display = 'none';
+            // Скрыть уведомление об ошибке при закрытии модального окна редактирования
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.innerHTML = '';
+                errorDiv.classList.remove('show');
+            }
+        });
         const checkbox = document.getElementById('same-data-checkbox');
         if (checkbox) checkbox.onchange = () => renderEditTable(editItems);
     }
 
     if (inventoryModal) {
         inventoryCloseElements.forEach(el => el.onclick = () => inventoryModal.style.display = 'none');
-        
+
         const fileInput = document.getElementById('inventory-file');
         const kpInput = document.getElementById('inventory-kp-number'); // Только для контейнеров
-        
+
         if (fileInput) {
             fileInput.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
@@ -954,7 +1040,7 @@ function attachModalListeners() {
                                 if (currentPage === 'container' && kpNumber) formData.append('kp_number', kpNumber);
 
                                 const endpoint = currentPage === 'container' ? '/add_from_inventory' :
-                                                currentPage === 'kp' ? '/add_kp_from_inventory' : '/add_booking_from_inventory';
+                                    currentPage === 'kp' ? '/add_kp_from_inventory' : '/add_booking_from_inventory';
                                 const response = await fetch(endpoint, {
                                     method: 'POST',
                                     body: formData
@@ -962,10 +1048,10 @@ function attachModalListeners() {
 
                                 const result = await response.json();
                                 inventoryModal.style.display = 'none';
-                                
+
                                 fileInput.value = '';
                                 if (kpInput) kpInput.value = '';
-                                
+
                                 showNotification(result);
                                 if (result.success > 0) await updateTable();
                             } catch (error) {
@@ -996,7 +1082,15 @@ function attachModalListeners() {
         if (event.target === addModal) addModal.style.display = 'none';
         else if (event.target === deleteModal) deleteModal.style.display = 'none';
         else if (event.target === editNumbersModal) editNumbersModal.style.display = 'none';
-        else if (event.target === editDataModal) editDataModal.style.display = 'none';
+        else if (event.target === editDataModal) {
+            editDataModal.style.display = 'none';
+            // Скрыть уведомление об ошибке при любом закрытии модального окна редактирования
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.innerHTML = '';
+                errorDiv.classList.remove('show');
+            }
+        }
         else if (event.target === inventoryModal) inventoryModal.style.display = 'none';
     };
 }
@@ -1007,8 +1101,8 @@ function toggleFilter() {
     filterContainer.classList.toggle("active");
 }
 
-function attachTableCellListeners() {
-    const table = document.querySelector('.table-container table');
+function attachTableCellListeners(tableSelector = '.table-container table') {
+    const table = document.querySelector(tableSelector);
     if (!table) return;
 
     const headers = table.querySelectorAll('th');
@@ -1016,7 +1110,6 @@ function attachTableCellListeners() {
     let isDragging = false;
     let startCell = null;
     let startColumnIndex = null;
-    let selectedCells = new Set();
 
     function getColumnIndex(cell) {
         return Array.from(cell.parentElement.children).indexOf(cell);
@@ -1043,6 +1136,26 @@ function attachTableCellListeners() {
         }
     }
 
+    function selectRectRange(startCell, endCell) {
+        clearSelection();
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+        const startRowIndex = Array.from(rows).indexOf(startCell.parentElement);
+        const endRowIndex = Array.from(rows).indexOf(endCell.parentElement);
+        const startColIndex = getColumnIndex(startCell);
+        const endColIndex = getColumnIndex(endCell);
+        const minRow = Math.min(startRowIndex, endRowIndex);
+        const maxRow = Math.max(startRowIndex, endRowIndex);
+        const minCol = Math.min(startColIndex, endColIndex);
+        const maxCol = Math.max(minCol, endColIndex);
+        for (let i = minRow; i <= maxRow; i++) {
+            for (let j = minCol; j <= maxCol; j++) {
+                const cell = rows[i].children[j];
+                cell.classList.add('custom-selected');
+                selectedCells.add(cell);
+            }
+        }
+    }
+
     function copySelectedCells() {
         const text = Array.from(selectedCells)
             .map(cell => cell.textContent.trim())
@@ -1062,12 +1175,9 @@ function attachTableCellListeners() {
         });
 
         cell.addEventListener('mouseover', (e) => {
-            if (!isDragging || startCell === null || startColumnIndex === null) return;
+            if (!isDragging || startCell === null) return;
             e.preventDefault();
-            const currentColumnIndex = getColumnIndex(cell);
-            if (currentColumnIndex === startColumnIndex) {
-                selectColumnRange(startCell, cell);
-            }
+            selectRectRange(startCell, cell);
         });
 
         cell.addEventListener('dblclick', (e) => {
@@ -1081,7 +1191,6 @@ function attachTableCellListeners() {
                 c.classList.add('custom-selected');
                 selectedCells.add(c);
             });
-            setTimeout(clearSelection, 1000);
         });
     });
 
@@ -1096,17 +1205,46 @@ function attachTableCellListeners() {
                 cell.classList.add('custom-selected');
                 selectedCells.add(cell);
             });
-            setTimeout(clearSelection, 1000);
         });
+    });
+
+    table.addEventListener('keydown', (e) => {
+        const active = document.activeElement;
+        if (!active || active.tagName !== 'TD') return;
+        // Не мешаем стандартному поведению, если есть выделение текста или курсор внутри contenteditable
+        if (active.isContentEditable && (window.getSelection()?.type === 'Range' || window.getSelection()?.type === 'Caret')) {
+            return;
+        }
+        const row = active.parentElement;
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+        const rowIndex = rows.indexOf(row);
+        const colIndex = Array.from(row.children).indexOf(active);
+        let nextCell = null;
+        if (e.key === 'ArrowRight') {
+            if (colIndex < row.children.length - 1) nextCell = row.children[colIndex + 1];
+        } else if (e.key === 'ArrowLeft') {
+            if (colIndex > 0) nextCell = row.children[colIndex - 1];
+        } else if (e.key === 'ArrowDown') {
+            if (rowIndex < rows.length - 1) nextCell = rows[rowIndex + 1].children[colIndex];
+        } else if (e.key === 'ArrowUp') {
+            if (rowIndex > 0) nextCell = rows[rowIndex - 1].children[colIndex];
+        }
+        if (nextCell) {
+            e.preventDefault();
+            clearSelection();
+            nextCell.classList.add('custom-selected');
+            selectedCells.add(nextCell);
+            if (nextCell.getAttribute('contenteditable') === 'true') {
+                nextCell.focus();
+            } else {
+                nextCell.blur && nextCell.blur();
+            }
+        }
     });
 
     document.addEventListener('mouseup', () => {
         if (isDragging) {
             isDragging = false;
-            if (selectedCells.size > 1) {
-                copySelectedCells();
-                setTimeout(clearSelection, 1000);
-            }
             startCell = null;
             startColumnIndex = null;
         }
@@ -1121,5 +1259,80 @@ function copyToClipboard(text) {
 
 document.addEventListener('DOMContentLoaded', () => {
     attachTableCellListeners();
-    document.addEventListener('tableUpdated', attachTableCellListeners);
+    document.addEventListener('tableUpdated', () => attachTableCellListeners());
 });
+
+document.addEventListener('keydown', (e) => {
+    // Проверяем на Ctrl+C для латиницы и кириллицы (русская/украинская/белорусская С)
+    const key = e.key;
+    const ctrl = e.ctrlKey || e.metaKey;
+    // Латинская C, русская С (строчная и заглавная), keyCode для C и С
+    const isCopyKey = (
+        key === 'c' || key === 'C' ||
+        key === 'с' || key === 'С' || // русская/украинская/белорусская С
+        e.keyCode === 67 || // латинская C
+        e.keyCode === 1057 // русская С
+    );
+    if (ctrl && isCopyKey) {
+        // Сначала ищем выделенные ячейки в edit-table, если открыта модалка редактирования
+        let table = document.querySelector('.edit-table');
+        let selectedCells = table ? table.querySelectorAll('td.custom-selected') : [];
+        if (!selectedCells || selectedCells.length === 0) {
+            // Если нет, то ищем в основной таблице
+            table = document.querySelector('.table-container table');
+            selectedCells = table ? table.querySelectorAll('td.custom-selected') : [];
+        }
+        if (table && selectedCells.length > 0) {
+            // Копируем в табличном формате (строки и столбцы)
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            let minRow = Infinity, maxRow = -1, minCol = Infinity, maxCol = -1;
+            const cellMap = new Map();
+            selectedCells.forEach(cell => {
+                const row = cell.parentElement;
+                const rowIndex = rows.indexOf(row);
+                const colIndex = Array.from(row.children).indexOf(cell);
+                minRow = Math.min(minRow, rowIndex);
+                maxRow = Math.max(maxRow, rowIndex);
+                minCol = Math.min(minCol, colIndex);
+                maxCol = Math.max(minCol, colIndex);
+                cellMap.set(rowIndex + '-' + colIndex, cell.textContent.trim());
+            });
+            let result = '';
+            for (let i = minRow; i <= maxRow; i++) {
+                let rowArr = [];
+                for (let j = minCol; j <= maxCol; j++) {
+                    rowArr.push(cellMap.get(i + '-' + j) || '');
+                }
+                result += rowArr.join('\t') + (i < maxRow ? '\n' : '');
+            }
+            copyToClipboard(result);
+            e.preventDefault();
+        }
+    }
+});
+
+// === SOCKET.IO: Автоматическое обновление таблицы ===
+(function() {
+    // Проверяем, что мы на странице контейнеров
+    if (typeof io === 'undefined') {
+        // Динамически подключаем socket.io, если не подключён
+        const script = document.createElement('script');
+        script.src = '/socket.io/socket.io.js';
+        script.onload = setupSocket;
+        document.head.appendChild(script);
+    } else {
+        setupSocket();
+    }
+
+    function setupSocket() {
+        const socket = io();
+        socket.on('connect', function() {
+            console.log('Socket.IO connected');
+        });
+        socket.on('containers_updated', function(data) {
+            if (window.currentPage === 'container') {
+                updateTable();
+            }
+        });
+    }
+})();

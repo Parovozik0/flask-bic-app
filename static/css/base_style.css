@@ -234,7 +234,7 @@ button.filter:hover img {
 .filter-container input {
     border: 1px solid #ddd;
     border-radius: 5px;
-    margin-bottom: 10px;
+    margin-bottom: 25px;
     padding: 10px;
     width: 100%;
 }
@@ -253,6 +253,11 @@ input[type="text"] {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     font-size: 16px;
     overflow-x: auto;
+}
+
+.table-container table td,
+.table-container table th {
+    user-select: none;
 }
 
 table {
@@ -334,7 +339,7 @@ tr:nth-child(odd) {
     border-spacing: 0;
     width: 100%;
     display: grid;
-    grid-template-columns: 180px repeat(7, 1fr);
+    grid-template-columns: 200px 1fr 1fr 160px 1fr 1fr 1fr 1fr;
 }
 
 .edit-table thead,
@@ -393,6 +398,13 @@ tr:nth-child(odd) {
     color: #999;
     content: '\00A0';
     display: inline-block;
+}
+
+.edit-table td[contenteditable="false"].kp-cell,
+.edit-table td[contenteditable="false"].booking-cell {
+    background: #ededed;
+    color: #888;
+    pointer-events: none;
 }
 
 /* Модальные окна */
@@ -681,6 +693,8 @@ tr:nth-child(odd) {
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     max-height: 50vh;
     overflow-y: auto;
+    min-width: 180px;
+    width: auto;
 }
 
 .notes-popup textarea {
@@ -694,12 +708,18 @@ tr:nth-child(odd) {
     border: none;
     margin: 0;
     box-sizing: border-box;
-}с
+}
 
 /* Стили для кастомного выделения */
 td.custom-selected, th.custom-selected {
-    background-color: #e0f7fa !important; /* Цвет выделения */
+    background-color: #e0f7fa !important; /* Светло-голубой для светлых ячеек */
     transition: background-color 0.3s ease;
+    user-select: none !important;
+}
+
+.table-container tbody td:nth-child(4).custom-selected,
+.edit-table td:nth-child(4).custom-selected {
+    color: #111 !important;
 }
 
 input[type="file"] {
@@ -707,4 +727,25 @@ input[type="file"] {
     margin-top: 10px;
     margin-bottom: 15px;
     width: 100%;
+}
+
+.filter-input,
+.filter-container input[type="text"],
+.filter-container input[type="date"] {
+    font-size: 14px;
+    padding: 6px 10px;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f8f9fa;
+    color: #222;
+    margin-bottom: 6px;
+    outline: none;
+    transition: border 0.2s;
+    box-sizing: border-box;
+}
+
+.filter-input:focus {
+    border: 1.5px solid #4a90e2;
+    background: #fff;
 }
