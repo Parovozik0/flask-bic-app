@@ -1313,9 +1313,9 @@ document.addEventListener('keydown', (e) => {
 
 // === SOCKET.IO: Автоматическое обновление таблицы ===
 (function() {
-    // Проверяем, что мы на странице контейнеров
+    // Делаем currentPage глобальной
+    window.currentPage = currentPage;
     if (typeof io === 'undefined') {
-        // Динамически подключаем socket.io, если не подключён
         const script = document.createElement('script');
         script.src = '/socket.io/socket.io.js';
         script.onload = setupSocket;
@@ -1330,6 +1330,8 @@ document.addEventListener('keydown', (e) => {
             console.log('Socket.IO connected');
         });
         socket.on('containers_updated', function(data) {
+            console.log('Получено событие containers_updated:', data);
+            window.currentPage = currentPage;
             if (window.currentPage === 'container') {
                 updateTable();
             }
