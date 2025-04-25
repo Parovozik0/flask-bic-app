@@ -17,8 +17,6 @@
             console.log('Handsontable available:', typeof Handsontable !== 'undefined');
         });
     </script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </head>
 <body>
     <div class="sidebar">
@@ -32,8 +30,12 @@
         </nav>
         <div class="exit"><span><img src="{{ url_for('static', filename='pics/exit.png') }}" width="49" height="49"></span> Выход</div>
     </div>
-    {% block main_content %}
-    {% endblock %}
+    <div id="main-content">
+        {% block main_content %}
+        {% endblock %}
+    </div>
     <img src="{{ url_for('static', filename='pics/question_mark.png') }}" width="60" height="60" class="question">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

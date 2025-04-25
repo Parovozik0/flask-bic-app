@@ -39,6 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
     attachNotesPopupListeners();
     attachFilterListeners();
     attachTableCellListeners();
+    document.addEventListener('tableUpdated', () => attachTableCellListeners());
+    // Вызов setupSocket только один раз при первой загрузке страницы
+    setupSocket();
 });
 
 function updateSidebar(activePage) {
@@ -67,7 +70,11 @@ async function loadPageContent(url, selectedValue) {
         const html = await response.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
-        document.body.innerHTML = doc.body.innerHTML;
+        // Меняем только #main-content, а не весь body!
+        const newMain = doc.getElementById('main-content');
+        if (newMain) {
+            document.getElementById('main-content').innerHTML = newMain.innerHTML;
+        }
 
         attachSidebarListeners();
         attachModalListeners();
@@ -647,14 +654,38 @@ async function renderEditTable(items) {
             editPopupText.focus();
             e.stopPropagation();
 
+            // Синхронизация: при вводе в textarea — обновлять ячейку
+            const syncTextarea = () => {
+                cell.textContent = editPopupText.value;
+            };
+            editPopupText.addEventListener('input', syncTextarea);
+
+            // Синхронизация: при вводе в ячейке — обновлять textarea, если popup открыт
+            const syncCell = () => {
+                if (editPopup.style.display === 'block') {
+                    editPopupText.value = cell.textContent;
+                }
+            };
+            cell.addEventListener('input', syncCell);
+
             document.addEventListener('click', function handler(e) {
                 if (!editPopup.contains(e.target) && !cell.contains(e.target)) {
                     cell.textContent = editPopupText.value;
                     editPopup.style.display = 'none';
+                    // Удаляем обработчики после закрытия
+                    editPopupText.removeEventListener('input', syncTextarea);
+                    cell.removeEventListener('input', syncCell);
                     document.removeEventListener('click', handler);
                 }
             }, { once: true });
         });
+    });
+
+    // Глобальный обработчик для скрытия editPopup при клике вне окна
+    document.addEventListener('mousedown', function hideEditPopupOnClick(e) {
+        if (editPopup.style.display === 'block' && !editPopup.contains(e.target)) {
+            editPopup.style.display = 'none';
+        }
     });
 
     if (currentPage === 'container') {
@@ -1257,11 +1288,6 @@ function copyToClipboard(text) {
         .catch(err => console.error('Ошибка копирования:', err));
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    attachTableCellListeners();
-    document.addEventListener('tableUpdated', () => attachTableCellListeners());
-});
-
 document.addEventListener('keydown', (e) => {
     // Проверяем на Ctrl+C для латиницы и кириллицы (русская/украинская/белорусская С)
     const key = e.key;
@@ -1311,30 +1337,22 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// === SOCKET.IO: Автоматическое обновление таблицы ===
-(function() {
-    // Делаем currentPage глобальной
-    window.currentPage = currentPage;
+function setupSocket() {
+    if (window.socketIOInitialized) return;
+    window.socketIOInitialized = true;
     if (typeof io === 'undefined') {
-        const script = document.createElement('script');
-        script.src = '/socket.io/socket.io.js';
-        script.onload = setupSocket;
-        document.head.appendChild(script);
-    } else {
-        setupSocket();
+        console.error('Socket.IO client (io) is not loaded!');
+        return;
     }
-
-    function setupSocket() {
-        const socket = io();
-        socket.on('connect', function() {
-            console.log('Socket.IO connected');
-        });
-        socket.on('containers_updated', function(data) {
-            console.log('Получено событие containers_updated:', data);
-            window.currentPage = currentPage;
-            if (window.currentPage === 'container') {
-                updateTable();
-            }
-        });
-    }
-})();
+    const socket = io();
+    socket.on('connect', function() {
+        console.log('Socket.IO connected');
+    });
+    socket.on('containers_updated', function(data) {
+        console.log('Получено событие containers_updated:', data);
+        window.currentPage = currentPage;
+        if (window.currentPage === 'container') {
+            updateTable();
+        }
+    });
+}
