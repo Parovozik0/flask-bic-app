@@ -5,18 +5,9 @@ let selectedCells = new Set(); // глобальная переменная дл
 
 // Навигация между страницами
 function navigateTo(page) {
-    const pageUrls = {
-        'container': '/container',
-        'kp': '/kp',
-        'buking': '/buking'
-    };
-
+    const pageUrls = { container: '/container', kp: '/kp', buking: '/buking' };
     const url = pageUrls[page];
-    if (!url) {
-        console.error('Unknown page:', page);
-        return;
-    }
-
+    if (!url) return console.error('Unknown page:', page);
     currentPage = page;
     window.history.pushState({ page }, '', url);
     updateSidebar(page);
@@ -24,42 +15,38 @@ function navigateTo(page) {
 }
 
 // Инициализация при загрузке DOM
+// Компактнее: делегируем обработчики и вызываем функции через массив
+
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
-    currentPage = {
-        '/kp': 'kp',
-        '/buking': 'buking'
-    }[path] || 'container';
-
+    currentPage = { '/kp': 'kp', '/buking': 'buking' }[path] || 'container';
     updateSidebar(currentPage);
     loadPageContent(path || '/container', currentPage === 'container' ? '40/20' : null);
-    attachSidebarListeners();
-    attachModalListeners();
-    attachTableRowListeners();
-    attachNotesPopupListeners();
-    attachFilterListeners();
-    attachTableCellListeners();
+    afterPageLoad();
     document.addEventListener('tableUpdated', () => attachTableCellListeners());
-    // Вызов setupSocket только один раз при первой загрузке страницы
     setupSocket();
 });
 
 function updateSidebar(activePage) {
-    const sidebarItems = document.querySelectorAll('.sidebar nav ul li');
-    sidebarItems.forEach(item => {
-        const page = item.dataset.page;
-        item.classList.toggle('active', page === activePage);
+    document.querySelectorAll('.sidebar nav ul li').forEach(item => {
+        item.classList.toggle('active', item.dataset.page === activePage);
     });
 }
 
 function attachSidebarListeners() {
-    const sidebarItems = document.querySelectorAll('.sidebar nav ul li');
-    sidebarItems.forEach(item => {
-        const page = item.dataset.page;
-        if (page) {
-            item.onclick = () => navigateTo(page);
-        }
-    });
+    const sidebarNav = document.querySelector('.sidebar nav ul');
+    if (!sidebarNav) return;
+    // Удаляем предыдущий обработчик, если он был
+    if (sidebarNav._sidebarClickHandler) {
+        sidebarNav.removeEventListener('click', sidebarNav._sidebarClickHandler);
+    }
+    // Новый обработчик
+    const handler = e => {
+        const li = e.target.closest('li[data-page]');
+        if (li) navigateTo(li.dataset.page);
+    };
+    sidebarNav.addEventListener('click', handler);
+    sidebarNav._sidebarClickHandler = handler;
 }
 
 async function loadPageContent(url, selectedValue) {
@@ -76,12 +63,7 @@ async function loadPageContent(url, selectedValue) {
             document.getElementById('main-content').innerHTML = newMain.innerHTML;
         }
 
-        attachSidebarListeners();
-        attachModalListeners();
-        attachTableRowListeners();
-        attachNotesPopupListeners();
-        attachFilterListeners();
-        attachTableCellListeners();
+        afterPageLoad();
         if (currentPage === 'container' && selectedValue) {
             attachSelectListener(selectedValue);
         }
@@ -111,7 +93,7 @@ async function updateTable(filters = {}) {
 
     function formatDateToISO(dateStr) {
         if (!dateStr) return '';
-        if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
+        if (/^\d{2}\.\д{2}\.\д{4}$/.test(dateStr)) {
             const [day, month, year] = dateStr.split('.');
             return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
         }
@@ -480,7 +462,7 @@ async function renderEditTable(items) {
     ];
     function formatDate(dateStr) {
         if (!dateStr) return '';
-        if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) return dateStr;
+        if (/^\д{2}\.\д{2}\.\д{4}$/.test(dateStr)) return dateStr;
         if (typeof dateStr === 'string' && dateStr.includes('-')) {
             const [year, month, day] = dateStr.split('-');
             return `${day}.${month}.${year}`;
@@ -587,21 +569,58 @@ async function renderEditTable(items) {
 
         deliveryCells.forEach(cell => {
             const initialDate = cell.textContent.trim();
-            flatpickr(cell, {
+            const fp = flatpickr(cell, {
                 dateFormat: "d.m.Y",
-                defaultDate: initialDate.match(/^\d{2}\.\d{2}\.\d{4}$/) ? initialDate : null,
+                defaultDate: initialDate.match(/^\д{2}\.\д{2}\.\д{4}$/) ? initialDate : null,
                 enableTime: false,
                 onChange: (selectedDates, dateStr) => cell.textContent = dateStr
+            });
+            // Обработка paste для вставки даты
+            cell.addEventListener('paste', (e) => {
+                e.preventDefault();
+                let pasted = (e.clipboardData || window.clipboardData).getData('text');
+                pasted = pasted.trim();
+                // Поддержка форматов 28.04.2025 и 2025-04-28
+                let matchDMY = pasted.match(/^(\д{2})\.(\д{2})\.(\д{4})$/);
+                let matchYMD = pasted.match(/^(\д{4})-(\д{2})-(\д{2})$/);
+                let newDate = '';
+                if (matchDMY) {
+                    newDate = `${matchDMY[1]}.${matchDMY[2]}.${matchDMY[3]}`;
+                } else if (matchYMD) {
+                    newDate = `${matchYMD[3]}.${matchYMD[2]}.${matchYMD[1]}`;
+                }
+                if (newDate) {
+                    cell.textContent = newDate;
+                    if (fp && fp.setDate) fp.setDate(newDate, true, "d.m.Y");
+                }
             });
         });
 
         pickupCells.forEach(cell => {
             const initialDate = cell.textContent.trim();
-            flatpickr(cell, {
+            const fp = flatpickr(cell, {
                 dateFormat: "d.m.Y",
-                defaultDate: initialDate.match(/^\d{2}\.\d{2}\.\d{4}$/) ? initialDate : null,
+                defaultDate: initialDate.match(/^\д{2}\.\д{2}\.\д{4}$/) ? initialDate : null,
                 enableTime: false,
                 onChange: (selectedDates, dateStr) => cell.textContent = dateStr
+            });
+            // Обработка paste для вставки даты
+            cell.addEventListener('paste', (e) => {
+                e.preventDefault();
+                let pasted = (e.clipboardData || window.clipboardData).getData('text');
+                pasted = pasted.trim();
+                let matchDMY = pasted.match(/^(\д{2})\.(\д{2})\.(\д{4})$/);
+                let matchYMD = pasted.match(/^(\д{4})-(\д{2})-(\д{2})$/);
+                let newDate = '';
+                if (matchDMY) {
+                    newDate = `${matchDMY[1]}.${matchDMY[2]}.${matchDMY[3]}`;
+                } else if (matchYMD) {
+                    newDate = `${matchYMD[3]}.${matchYMD[2]}.${matchYMD[1]}`;
+                }
+                if (newDate) {
+                    cell.textContent = newDate;
+                    if (fp && fp.setDate) fp.setDate(newDate, true, "d.m.Y");
+                }
             });
         });
 
@@ -652,33 +671,17 @@ async function renderEditTable(items) {
             editPopupText.value = cell.textContent;
             editPopup.style.display = 'block';
             editPopupText.focus();
+            // Сохраняем ссылку на текущую ячейку для копирования текста
+            editPopupText._linkedCell = cell;
             e.stopPropagation();
-
-            // Синхронизация: при вводе в textarea — обновлять ячейку
-            const syncTextarea = () => {
-                cell.textContent = editPopupText.value;
-            };
-            editPopupText.addEventListener('input', syncTextarea);
-
-            // Синхронизация: при вводе в ячейке — обновлять textarea, если popup открыт
-            const syncCell = () => {
-                if (editPopup.style.display === 'block') {
-                    editPopupText.value = cell.textContent;
-                }
-            };
-            cell.addEventListener('input', syncCell);
-
-            document.addEventListener('click', function handler(e) {
-                if (!editPopup.contains(e.target) && !cell.contains(e.target)) {
-                    cell.textContent = editPopupText.value;
-                    editPopup.style.display = 'none';
-                    // Удаляем обработчики после закрытия
-                    editPopupText.removeEventListener('input', syncTextarea);
-                    cell.removeEventListener('input', syncCell);
-                    document.removeEventListener('click', handler);
-                }
-            }, { once: true });
         });
+    });
+
+    // Копирование текста из textarea обратно в ячейку при вводе
+    editPopupText.addEventListener('input', function() {
+        if (editPopupText._linkedCell) {
+            editPopupText._linkedCell.textContent = editPopupText.value;
+        }
     });
 
     // Глобальный обработчик для скрытия editPopup при клике вне окна
@@ -696,7 +699,41 @@ async function renderEditTable(items) {
                 const row = e.target.closest('tr');
                 const kpCell = row.querySelector('.kp-cell');
                 const bookingCell = row.querySelector('.booking-cell');
+                const deliveryCell = row.querySelector('.delivery-date');
+                const pickupCell = row.querySelector('.pickup-date');
                 const selectedStatus = e.target.value;
+
+                // Логика блокировки дат
+                if (selectedStatus === "Направлен в Китай" || selectedStatus === "Направлен в Россию") {
+                    if (deliveryCell) {
+                        deliveryCell.textContent = '';
+                        deliveryCell.setAttribute('contenteditable', false);
+                        deliveryCell.classList.add('blocked-cell');
+                    }
+                    if (pickupCell) {
+                        pickupCell.setAttribute('contenteditable', true);
+                        pickupCell.classList.remove('blocked-cell');
+                    }
+                } else if (selectedStatus === "В Китае" || selectedStatus === "В России") {
+                    if (pickupCell) {
+                        pickupCell.textContent = '';
+                        pickupCell.setAttribute('contenteditable', false);
+                        pickupCell.classList.add('blocked-cell');
+                    }
+                    if (deliveryCell) {
+                        deliveryCell.setAttribute('contenteditable', true);
+                        deliveryCell.classList.remove('blocked-cell');
+                    }
+                } else {
+                    if (deliveryCell) {
+                        deliveryCell.setAttribute('contenteditable', true);
+                        deliveryCell.classList.remove('blocked-cell');
+                    }
+                    if (pickupCell) {
+                        pickupCell.setAttribute('contenteditable', true);
+                        pickupCell.classList.remove('blocked-cell');
+                    }
+                }
 
                 const editable = selectedStatus === "Направлен в Китай";
                 kpCell.setAttribute('contenteditable', editable);
@@ -716,7 +753,40 @@ async function renderEditTable(items) {
             const row = select.closest('tr');
             const kpCell = row.querySelector('.kp-cell');
             const bookingCell = row.querySelector('.booking-cell');
+            const deliveryCell = row.querySelector('.delivery-date');
+            const pickupCell = row.querySelector('.pickup-date');
             const selectedStatus = select.value;
+            // Инициализация блокировки дат
+            if (selectedStatus === "Направлен в Китай" || selectedStatus === "Направлен в Россию") {
+                if (deliveryCell) {
+                    deliveryCell.textContent = '';
+                    deliveryCell.setAttribute('contenteditable', false);
+                    deliveryCell.classList.add('blocked-cell');
+                }
+                if (pickupCell) {
+                    pickupCell.setAttribute('contenteditable', true);
+                    pickupCell.classList.remove('blocked-cell');
+                }
+            } else if (selectedStatus === "В Китае" || selectedStatus === "В России") {
+                if (pickupCell) {
+                    pickupCell.textContent = '';
+                    pickupCell.setAttribute('contenteditable', false);
+                    pickupCell.classList.add('blocked-cell');
+                }
+                if (deliveryCell) {
+                    deliveryCell.setAttribute('contenteditable', true);
+                    deliveryCell.classList.remove('blocked-cell');
+                }
+            } else {
+                if (deliveryCell) {
+                    deliveryCell.setAttribute('contenteditable', true);
+                    deliveryCell.classList.remove('blocked-cell');
+                }
+                if (pickupCell) {
+                    pickupCell.setAttribute('contenteditable', true);
+                    pickupCell.classList.remove('blocked-cell');
+                }
+            }
             const editable = selectedStatus === "Направлен в Китай";
             kpCell.setAttribute('contenteditable', editable);
             bookingCell.setAttribute('contenteditable', editable);
@@ -927,28 +997,23 @@ function attachModalListeners() {
     const addButton = document.querySelector('.add');
     const deleteButton = document.querySelector('.delete');
     const editButton = document.querySelector('.edit');
-    const inventoryButton = document.querySelector('.inventory');
     const addModal = document.getElementById('add-modal');
     const deleteModal = document.getElementById('delete-modal');
     const editNumbersModal = document.getElementById('edit-numbers-modal');
     const editDataModal = document.getElementById('edit-data-modal');
-    const inventoryModal = document.getElementById('inventory-modal');
 
     const addCloseElements = addModal?.querySelectorAll('.modal-header .close, .modal-footer .cancel') || [];
     const deleteCloseElements = deleteModal?.querySelectorAll('.modal-header .close, .modal-footer .cancel') || [];
     const editNumbersCloseElements = editNumbersModal?.querySelectorAll('.modal-header .close, .modal-footer .cancel') || [];
     const editDataCloseElements = editDataModal?.querySelectorAll('.modal-header .close, .modal-footer .cancel') || [];
-    const inventoryCloseElements = inventoryModal?.querySelectorAll('.modal-header .close, .modal-footer .cancel') || [];
 
     const addSaveButton = addModal?.querySelector('.modal-footer .save');
     const deleteSaveButton = deleteModal?.querySelector('.modal-footer .save');
     const editNextButton = editNumbersModal?.querySelector('.modal-footer .next');
-    const inventorySaveButton = inventoryModal?.querySelector('.modal-footer .save');
 
     if (addButton && addModal) addButton.onclick = () => addModal.style.display = 'block';
     if (deleteButton && deleteModal) deleteButton.onclick = () => deleteModal.style.display = 'block';
     if (editButton && editNumbersModal) editButton.onclick = () => editNumbersModal.style.display = 'block';
-    if (inventoryButton && inventoryModal) inventoryButton.onclick = () => inventoryModal.style.display = 'block';
 
     if (addModal) {
         addCloseElements.forEach(el => el.onclick = () => addModal.style.display = 'none');
@@ -1029,86 +1094,6 @@ function attachModalListeners() {
         if (checkbox) checkbox.onchange = () => renderEditTable(editItems);
     }
 
-    if (inventoryModal) {
-        inventoryCloseElements.forEach(el => el.onclick = () => inventoryModal.style.display = 'none');
-
-        const fileInput = document.getElementById('inventory-file');
-        const kpInput = document.getElementById('inventory-kp-number'); // Только для контейнеров
-
-        if (fileInput) {
-            fileInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                try {
-                    const data = await file.arrayBuffer();
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
-                    const numbers = jsonData
-                        .map(row => row[0]?.toString().trim())
-                        .filter(num => num && (currentPage !== 'container' || /^[A-Za-z]{4}\d{7}$/.test(num)));
-
-                    if (numbers.length === 0) {
-                        showNotification({
-                            success: 0,
-                            failed: 0,
-                            errors: [`Не найдено корректных номеров ${currentPage === 'container' ? 'контейнеров' : currentPage === 'kp' ? 'КП' : 'букингов'} в файле`],
-                            status: 'error',
-                            action: 'inventory'
-                        });
-                        return;
-                    }
-
-                    if (inventorySaveButton) {
-                        inventorySaveButton.onclick = async () => {
-                            const kpNumber = kpInput?.value.trim() || ''; // Только для контейнеров
-
-                            try {
-                                const formData = new FormData();
-                                formData.append(`${currentPage}_numbers`, numbers.join('\n'));
-                                if (currentPage === 'container' && kpNumber) formData.append('kp_number', kpNumber);
-
-                                const endpoint = currentPage === 'container' ? '/add_from_inventory' :
-                                    currentPage === 'kp' ? '/add_kp_from_inventory' : '/add_booking_from_inventory';
-                                const response = await fetch(endpoint, {
-                                    method: 'POST',
-                                    body: formData
-                                });
-
-                                const result = await response.json();
-                                inventoryModal.style.display = 'none';
-
-                                fileInput.value = '';
-                                if (kpInput) kpInput.value = '';
-
-                                showNotification(result);
-                                if (result.success > 0) await updateTable();
-                            } catch (error) {
-                                showNotification({
-                                    success: 0,
-                                    failed: numbers.length,
-                                    errors: ['Ошибка сервера: ' + error.message],
-                                    status: 'error',
-                                    action: 'inventory'
-                                });
-                            }
-                        };
-                    }
-                } catch (error) {
-                    showNotification({
-                        success: 0,
-                        failed: 0,
-                        errors: ['Ошибка чтения файла: ' + error.message],
-                        status: 'error',
-                        action: 'inventory'
-                    });
-                }
-            });
-        }
-    }
-
     window.onclick = (event) => {
         if (event.target === addModal) addModal.style.display = 'none';
         else if (event.target === deleteModal) deleteModal.style.display = 'none';
@@ -1122,8 +1107,182 @@ function attachModalListeners() {
                 errorDiv.classList.remove('show');
             }
         }
-        else if (event.target === inventoryModal) inventoryModal.style.display = 'none';
     };
+
+    // --- inventory modal logic ---
+    const inventoryButton = document.querySelector('.inventory');
+    const inventoryModal = document.getElementById('inventory-modal');
+    const inventoryClose = inventoryModal?.querySelector('.modal-header .close');
+    const inventoryCancel = inventoryModal?.querySelector('.modal-footer .cancel');
+    const inventorySave = inventoryModal?.querySelector('.modal-footer .save');
+    const inventoryFile = document.getElementById('inventory-file');
+    const inventoryPreview = document.getElementById('inventory-preview-wrapper');
+    const inventoryColumnsSelect = document.getElementById('inventory-columns-select');
+    let inventoryData = [];
+    let inventoryHeaders = [];
+    let selectedColumns = [];
+
+    if (inventoryButton && inventoryModal) {
+        inventoryButton.onclick = () => {
+            inventoryModal.style.display = 'block';
+            inventoryPreview.innerHTML = '';
+            inventoryColumnsSelect.innerHTML = '';
+            inventoryFile.value = '';
+            inventoryData = [];
+            inventoryHeaders = [];
+            selectedColumns = [];
+        };
+    }
+    if (inventoryClose) inventoryClose.onclick = () => inventoryModal.style.display = 'none';
+    if (inventoryCancel) inventoryCancel.onclick = () => inventoryModal.style.display = 'none';
+
+    // Преобразование Excel serial date (число) в строку дд.мм.гггг
+    function excelDateToString(excelDate) {
+        if (typeof excelDate !== 'number') return excelDate;
+        if (excelDate < 40000 || excelDate > 60000) return excelDate; // простая фильтрация
+        const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
+        if (isNaN(date.getTime())) return excelDate;
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}.${month}.${year}`;
+    }
+
+    if (inventoryFile) {
+        inventoryFile.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                // --- Добавляем поддержку переключения листов ---
+                let currentSheetIndex = 0;
+                function renderSheet(sheetIndex) {
+                    const sheetName = workbook.SheetNames[sheetIndex];
+                    const sheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    if (!json.length) return;
+                    inventoryHeaders = json[0];
+                    inventoryData = json.slice(1);
+                    // Render preview table with comboboxes
+                    let html = '<table class="inventory-preview-table"><thead><tr>';
+                    inventoryHeaders.forEach((h, i) => {
+                        html += `<th>${h || 'Столбец ' + (i+1)}<br><select class='inventory-col-combo' data-col='${i}' style='margin-top:4px;'>`;
+                        html += `<option value=\"none\">Не использовать</option>`;
+                        if (currentPage === 'container') {
+                            html += `<option value=\"number\">Номер контейнера</option>`;
+                            html += `<option value=\"kp\">КП</option>`;
+                            html += `<option value=\"booking\">Букинг</option>`;
+                            html += `<option value=\"status\">Статус</option>`;
+                            html += `<option value=\"location\">Локация</option>`;
+                            html += `<option value=\"delivery_date\">Дата сдачи</option>`;
+                            html += `<option value=\"pickup_date\">Дата pick up</option>`;
+                            html += `<option value=\"notes\">Заметки</option>`;
+                        } else if (currentPage === 'kp') {
+                            html += `<option value=\"number\">Номер КП</option>`;
+                            html += `<option value=\"location\">Станция назначения</option>`;
+                            html += `<option value=\"notes\">Заметки</option>`;
+                        } else {
+                            html += `<option value=\"number\">Номер букинга</option>`;
+                            html += `<option value=\"notes\">Заметки</option>`;
+                        }
+                        html += `</select></th>`;
+                    });
+                    html += '</tr></thead><tbody>';
+                    inventoryData.slice(0, 10).forEach(row => {
+                        if (row.some(cell => cell !== undefined && String(cell).trim() !== '')) {
+                            html += '<tr>';
+                            inventoryHeaders.forEach((_, i) => {
+                                let val = row[i];
+                                if (typeof val === 'number' && /date|дата|in-date/i.test(inventoryHeaders[i])) {
+                                    val = excelDateToString(val);
+                                }
+                                html += `<td>${val !== undefined ? val : ''}</td>`;
+                            });
+                            html += '</tr>';
+                        }
+                    });
+                    html += '</tbody></table>';
+                    // --- Вкладки листов ---
+                    let tabs = '<div id="import-sheet-tabs">';
+                    workbook.SheetNames.forEach((name, idx) => {
+                        tabs += `<div class="sheet-tab${idx === sheetIndex ? ' active' : ''}" data-sheet="${idx}">${name}</div>`;
+                    });
+                    tabs += '</div>';
+                    inventoryPreview.innerHTML = tabs + html;
+                    // Обработчик вкладок
+                    inventoryPreview.querySelectorAll('.sheet-tab').forEach(tab => {
+                        tab.onclick = function() {
+                            renderSheet(+tab.dataset.sheet);
+                        };
+                    });
+                    // Обработчики комбобоксов
+                    selectedColumns = Array(inventoryHeaders.length).fill('none');
+                    inventoryPreview.querySelectorAll('.inventory-col-combo').forEach(combo => {
+                        combo.onchange = function() {
+                            const col = +combo.dataset.col;
+                            selectedColumns[col] = combo.value;
+                        };
+                    });
+                }
+                renderSheet(0);
+            };
+            reader.readAsArrayBuffer(file);
+        };
+    }
+
+    if (inventorySave) {
+        inventorySave.onclick = async () => {
+            // Собираем данные по выбранным типам
+            const colMap = {};
+            selectedColumns.forEach((type, i) => {
+                if (type && type !== 'none') colMap[type] = i;
+            });
+            if (!inventoryData.length || !colMap.number) {
+                alert('Выберите хотя бы столбец с номерами!');
+                return;
+            }
+            // Формируем TSV для отправки
+            const columns = Object.keys(colMap);
+            const tsvRows = inventoryData.map(row => {
+                return columns.map(col => {
+                    let val = row[colMap[col]];
+                    if (typeof val === 'number' && /date|дата|in-date/i.test(col)) {
+                        val = excelDateToString(val);
+                    }
+                    return val !== undefined ? val : '';
+                }).join('\t');
+            }).filter(row => row.split('\t')[0]); // фильтруем пустые номера
+            const tsvData = tsvRows.join('\n');
+            // Отправляем на сервер
+            const formData = new FormData();
+            formData.append('tsv_data', tsvData);
+            formData.append('columns', columns.join(','));
+            const resp = await fetch('/add_containers_from_inventory', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await resp.json();
+            if (result.status === 'success') {
+                inventoryModal.style.display = 'none';
+                showNotification(result);
+                await updateTable();
+            } else {
+                alert(result.errors ? result.errors.join('\n') : 'Ошибка импорта');
+            }
+        };
+    }
+
+    // Глобальный обработчик для закрытия inventory-modal при клике вне его содержимого
+    if (inventoryModal) {
+        inventoryModal.addEventListener('mousedown', function(event) {
+            const modalContent = inventoryModal.querySelector('.modal-content');
+            if (modalContent && !modalContent.contains(event.target)) {
+                inventoryModal.style.display = 'none';
+            }
+        });
+    }
 }
 
 function toggleFilter() {
@@ -1175,7 +1334,7 @@ function attachTableCellListeners(tableSelector = '.table-container table') {
         const startColIndex = getColumnIndex(startCell);
         const endColIndex = getColumnIndex(endCell);
         const minRow = Math.min(startRowIndex, endRowIndex);
-        const maxRow = Math.max(startRowIndex, endRowIndex);
+        const maxRow = Math.max(minRow, endRowIndex);
         const minCol = Math.min(startColIndex, endColIndex);
         const maxCol = Math.max(minCol, endColIndex);
         for (let i = minRow; i <= maxRow; i++) {
@@ -1211,12 +1370,11 @@ function attachTableCellListeners(tableSelector = '.table-container table') {
             selectRectRange(startCell, cell);
         });
 
+        // Удалено копирование по двойному клику, оставлено только выделение
         cell.addEventListener('dblclick', (e) => {
             e.preventDefault();
             const row = cell.parentElement;
             const rowCells = Array.from(row.querySelectorAll('td'));
-            const rowText = rowCells.map(c => c.textContent.trim()).join('\t');
-            copyToClipboard(rowText);
             clearSelection();
             rowCells.forEach(c => {
                 c.classList.add('custom-selected');
@@ -1230,8 +1388,6 @@ function attachTableCellListeners(tableSelector = '.table-container table') {
             e.preventDefault();
             clearSelection();
             const columnCells = Array.from(table.querySelectorAll(`tbody td:nth-child(${index + 1})`));
-            const columnText = columnCells.map(cell => cell.textContent.trim()).join('\n');
-            copyToClipboard(columnText);
             columnCells.forEach(cell => {
                 cell.classList.add('custom-selected');
                 selectedCells.add(cell);
@@ -1355,4 +1511,14 @@ function setupSocket() {
             updateTable();
         }
     });
+}
+
+// После каждой загрузки страницы инициализируем модалку импорта
+function afterPageLoad() {
+    attachSidebarListeners();
+    attachModalListeners();
+    attachTableRowListeners();
+    attachNotesPopupListeners();
+    attachFilterListeners();
+    attachTableCellListeners();
 }

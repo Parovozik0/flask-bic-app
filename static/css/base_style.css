@@ -306,6 +306,13 @@ th {
     position: sticky;
 }
 
+.edit-table th, .table-container th {
+    white-space: nowrap;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 tr:nth-child(even) {
     background-color: #f2f2f2;
 }
@@ -367,6 +374,8 @@ tr:nth-child(odd) {
     position: sticky;
     top: 0;
     z-index: 2;
+    text-align: center !important;
+    justify-content: center !important;
 }
 
 .edit-table td[contenteditable="true"] {
@@ -405,6 +414,13 @@ tr:nth-child(odd) {
     background: #ededed;
     color: #888;
     pointer-events: none;
+}
+
+.edit-table td.blocked-cell {
+    background: #ededed !important;
+    color: #888 !important;
+    pointer-events: none;
+    cursor: not-allowed;
 }
 
 /* Модальные окна */
@@ -748,4 +764,128 @@ input[type="file"] {
 .filter-input:focus {
     border: 1.5px solid #4a90e2;
     background: #fff;
+}
+
+/* Excel-style sheet tabs for import preview */
+#import-sheet-tabs {
+    display: flex;
+    gap: 0;
+    margin-top: 0;
+    padding-left: 0;
+    border-top: 1px solid #e0e0e0;
+    background: #f8f8f8;
+    min-height: 36px;
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    overflow-x: visible;
+    overflow-y: hidden;
+    justify-content: flex-start;
+}
+.sheet-tab {
+    background: #e9e9e9;
+    border: 1px solid #c0c0c0;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    color: #222;
+    cursor: pointer;
+    font-size: 15px;
+    margin-right: 2px;
+    min-width: 90px;
+    max-width: 180px;
+    padding: 7px 22px 6px 22px;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    outline: none;
+    position: relative;
+    top: 1px;
+    height: 36px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    z-index: 1;
+    border-right: none;
+}
+.sheet-tab:last-child {
+    border-right: 1px solid #c0c0c0;
+}
+.sheet-tab.active {
+    background: #fff;
+    color: #0A1F44;
+    font-weight: 600;
+    border-bottom: 2px solid #fff;
+    z-index: 2;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.04);
+}
+.sheet-tab:hover {
+    background: #f4f4f4;
+}
+
+/* Стили для предпросмотра импортируемой таблицы с комбобоксами */
+.inventory-preview-table {
+    border-collapse: collapse;
+    width: 100%;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+.inventory-preview-table th {
+    background: #0D1B2A;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 10px 8px 2px 8px;
+    text-align: center; /* Центрируем текст */
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-bottom: 1.5px solid #e0e0e0;
+    vertical-align: bottom;
+    position: relative;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+}
+.inventory-preview-table th select.inventory-col-combo {
+    margin-top: 7px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid #bbb;
+    font-size: 13px;
+    background: #f8f9fa;
+    color: #222;
+    min-width: 60px;
+    width: 100%;
+    max-width: 100%;
+    display: block;
+    box-sizing: border-box;
+    transition: font-size 0.2s, min-width 0.2s;
+}
+@media (max-width: 900px) {
+    .inventory-preview-table th select.inventory-col-combo {
+        font-size: 11px;
+        min-width: 40px;
+        padding: 2px 4px;
+    }
+}
+.inventory-preview-table td {
+    padding: 7px 8px;
+    font-size: 14px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fff !important; /* Всегда белый фон */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center; /* Центрируем текст */
+}
+.inventory-preview-table tr:nth-child(even) td {
+    background: #fff !important; /* Убираем серый фон */
+}
+.inventory-preview-table tr:nth-child(odd) td {
+    background: #fff !important; /* Убираем серый фон */
 }

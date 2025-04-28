@@ -13,6 +13,8 @@ from flask_socketio import SocketIO, emit
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 app.config.from_object(Config)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['DEBUG'] = True
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -985,7 +987,83 @@ def add_booking_from_inventory():
             'status': 'error'
         })
 
+@app.route('/add_containers_from_inventory', methods=['POST'])
+def add_containers_from_inventory():
+    """
+    Принимает POST с полями:
+      - tsv_data: строки вида <number>\t<KP>\t<booking>\t<status>\t<location>\t<delivery_date>\t<pickup_date>\t<notes>\n...
+      - columns: список имён полей (в нужном порядке, через запятую)
+    Добавляет или обновляет контейнеры в базе.
+    """
+    try:
+        tsv_data = request.form.get('tsv_data', '').strip()
+        columns = request.form.get('columns', '').strip().split(',')
+        if not tsv_data or not columns or 'number' not in columns:
+            return jsonify({'success': 0, 'failed': 0, 'errors': ['Данные или столбцы не переданы, либо не выбран номер контейнера'], 'status': 'error'})
+        rows = [r for r in tsv_data.split('\n') if r.strip()]
+        added_count = 0
+        updated_count = 0
+        failed_count = 0
+        errors = []
+        pattern = r'^[A-Za-z]{4}\d{7}$'
+        for row in rows:
+            values = row.split('\t')
+            data = dict(zip(columns, values))
+            number = data.get('number', '').strip()
+            if len(number) > 11:
+                failed_count += 1
+                errors.append(f"Контейнер {number}: слишком длинный (макс. 11 символов)")
+                continue
+            elif len(number) < 11:
+                failed_count += 1
+                errors.append(f"Контейнер {number}: слишком короткий (мин. 11 символов)")
+                continue
+            if not re.match(pattern, number):
+                failed_count += 1
+                errors.append(f"Контейнер {number}: неверный формат (должно быть 4 буквы + 7 цифр)")
+                continue
+            formatted_number = number[:4].upper() + number[4:11].lower()
+            # Подготовка полей
+            fields = {
+                'number': formatted_number,
+                'KP': data.get('kp') or None,
+                'booking': data.get('booking') or None,
+                'status': data.get('status') or 'Направлен в Китай',
+                'location': data.get('location') or None,
+                'delivery_date': data.get('delivery_date') or None,
+                'pickup_date': data.get('pickup_date') or None,
+                'notes': data.get('notes') or None
+            }
+            # Преобразование дат
+            for date_field in ['delivery_date', 'pickup_date']:
+                val = fields[date_field]
+                if val and re.match(r'\d{2}\.\d{2}\.\d{4}', val):
+                    d, m, y = val.split('.')
+                    fields[date_field] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+                elif val and re.match(r'\d{4}-\d{2}-\d{2}', val):
+                    fields[date_field] = val
+                else:
+                    fields[date_field] = None if not val else val
+            # Проверяем существование
+            existing = db.session.query(Container).filter_by(number=formatted_number).first()
+            if existing:
+                # Обновляем все выбранные поля
+                for k, v in fields.items():
+                    if k != 'number' and v is not None:
+                        setattr(existing, k, v)
+                updated_count += 1
+            else:
+                db.session.add(Container(**fields))
+                added_count += 1
+        db.session.commit()
+        if added_count + updated_count > 0:
+            socketio.emit('containers_updated', {'action': 'add'})
+        return jsonify({'success': added_count, 'updated': updated_count, 'failed': failed_count, 'errors': errors if errors else None, 'status': 'success' if added_count + updated_count > 0 else 'error'})
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({'success': 0, 'failed': len(rows) if 'rows' in locals() else 0, 'errors': [f"Ошибка базы данных: {str(e)}"], 'status': 'error'})
+
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
-    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
