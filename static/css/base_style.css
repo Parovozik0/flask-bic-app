@@ -544,7 +544,7 @@ tr:nth-child(odd) {
     right: 20px;
     transform: translateX(100%);
     transition: opacity 0.3s ease, transform 0.3s ease;
-    width: 300px;
+    width: 400px;
     z-index: 2000;
 }
 
@@ -587,6 +587,12 @@ tr:nth-child(odd) {
 .notification ul li {
     color: #333;
     font-size: 12px;
+}
+
+.notification .error-toggle {
+    cursor: pointer;
+    text-decoration: underline;
+    color: #007bff;
 }
 
 /* Чекбоксы и дополнительные элементы */
@@ -726,16 +732,48 @@ tr:nth-child(odd) {
     box-sizing: border-box;
 }
 
-/* Стили для кастомного выделения */
+/* Стили для кастомного выделения - обновлённая версия для всех таблиц */
 td.custom-selected, th.custom-selected {
-    background-color: #e0f7fa !important; /* Светло-голубой для светлых ячеек */
+    background-color: #e0f7fa !important; /* Светло-голубой фон */
+    border: 1px solid #81d4fa !important; /* Голубая граница */
+    color: #111 !important; /* Тёмный текст для читаемости */
     transition: background-color 0.3s ease;
+    box-shadow: inset 0 0 2px #4fc3f7; /* Внутренняя тень */
     user-select: none !important;
 }
 
-.table-container tbody td:nth-child(4).custom-selected,
-.edit-table td:nth-child(4).custom-selected {
+/* Специальные правила для статусных ячеек в основной таблице */
+.table-container tbody td:nth-child(4).custom-selected {
+    background-color: #e0f7fa !important;
     color: #111 !important;
+    font-weight: 700; /* Сохраняем жирный шрифт для статусной ячейки */
+}
+
+/* Стиль выделения для ячеек таблицы редактирования */
+.edit-table td.custom-selected {
+    background-color: #e0f7fa !important;
+    border: 1px solid #81d4fa !important;
+    color: #111 !important;
+    box-shadow: inset 0 0 2px #4fc3f7;
+}
+
+/* Для таблицы импорта - поддерживаем тот же стиль, уже реализованный ранее */
+.inventory-preview-table td.custom-selected {
+    background-color: #e0f7fa !important;
+    border: 1px solid #81d4fa !important;
+    color: #111 !important;
+    transition: background-color 0.3s ease;
+    box-shadow: inset 0 0 2px #4fc3f7;
+}
+
+/* Переопределяем фон для чётных/нечётных строк в стандартной таблице */
+.table-container tr:nth-child(even) td.custom-selected,
+.table-container tr:nth-child(odd) td.custom-selected,
+.edit-table tr:nth-child(even) td.custom-selected,
+.edit-table tr:nth-child(odd) td.custom-selected,
+.inventory-preview-table tr:nth-child(even) td.custom-selected,
+.inventory-preview-table tr:nth-child(odd) td.custom-selected {
+    background-color: #e0f7fa !important; /* Единый цвет фона для выделенных ячеек */
 }
 
 input[type="file"] {
@@ -768,12 +806,12 @@ input[type="file"] {
 
 /* Excel-style sheet tabs for import preview */
 #import-sheet-tabs {
+    padding: 0 10px !important;
     display: flex;
     gap: 0;
     margin-top: 0;
-    padding-left: 0;
-    border-top: 1px solid #e0e0e0;
-    background: #f8f8f8;
+    background: none !important;
+    border-top: none !important;
     min-height: 36px;
     position: sticky;
     bottom: 0;
@@ -888,4 +926,9 @@ input[type="file"] {
 }
 .inventory-preview-table tr:nth-child(odd) td {
     background: #fff !important; /* Убираем серый фон */
+}
+
+/* Disable text selection in import preview modal */
+.inventory-preview-table th, .inventory-preview-table td, #import-sheet-tabs, .sheet-tab {
+    user-select: none;
 }

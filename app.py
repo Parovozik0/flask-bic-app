@@ -301,7 +301,7 @@ def add_container():
                     formatted_number = container_number[:4].upper() + container_number[4:11].lower()
                     result = db.session.execute(text("""
                         INSERT INTO containers (number, status)
-                        VALUES (:number, 'Направлен в Китай')
+                        VALUES (:number, 'В Китае')
                         ON CONFLICT (number) DO NOTHING
                     """), {'number': formatted_number})
                     if result.rowcount > 0:
@@ -385,7 +385,7 @@ def add_container_sheet():
                     if container and KP_number_text:
                         container.KP = KP_number_text
                     if existing_container is None:
-                        container = Container(number=number, status='Направлен в Китай')
+                        container = Container(number=number, status='В Китае')
                         db.session.add(container)
             db.session.commit()
             flash(f"Успешно! Было вставлено и обновлено {added_count} контейнеров!")
@@ -515,10 +515,14 @@ def update_container():
         kp = request.form.get('kp') or None
         booking = request.form.get('booking') or None
         status = request.form.get('status')
-        location = request.form.get('location') or None
-        delivery_date = request.form.get('delivery_date') or None
-        pickup_date = request.form.get('pickup_date') or None
-        notes = request.form.get('notes') or None
+        raw_loc = request.form.get('location')
+        location = raw_loc.strip() if raw_loc and raw_loc.strip() else None
+        raw_del = request.form.get('delivery_date')
+        delivery_date = raw_del.strip() if raw_del and raw_del.strip() else None
+        raw_pick = request.form.get('pickup_date')
+        pickup_date = raw_pick.strip() if raw_pick and raw_pick.strip() else None
+        raw_notes = request.form.get('notes')
+        notes = raw_notes.strip() if raw_notes and raw_notes.strip() else None
 
         result = db.session.execute(
             text("""
@@ -640,7 +644,7 @@ def add_from_inventory():
             db.session.add(kp_entry)
             db.session.commit()
 
-        # Добавляем каждый контейнер со статусом "Направлен в Китай"
+        # Добавляем каждый контейнер со статусом "В Китае"
         for container_number in container_list:
             if len(container_number) > 11:
                 failed_count += 1
@@ -662,11 +666,11 @@ def add_from_inventory():
                         failed_count += 1
                         errors.append(f"Контейнер {formatted_number}: уже существует")
                     else:
-                        # Добавляем новый контейнер со статусом "Направлен в Китай"
+                        # Добавляем новый контейнер со статусом "В Китае"
                         new_container = Container(
                             number=formatted_number, 
                             KP=kp_number if kp_number else None,
-                            status='Направлен в Китай'
+                            status='В Китае'
                         )
                         db.session.add(new_container)
                         added_count += 1
@@ -1009,6 +1013,10 @@ def add_containers_from_inventory():
         for row in rows:
             values = row.split('\t')
             data = dict(zip(columns, values))
+            # Убираем лишние пробелы и символы переноса строк в значениях
+            for key, val in data.items():
+                if isinstance(val, str):
+                    data[key] = val.strip()
             number = data.get('number', '').strip()
             if len(number) > 11:
                 failed_count += 1
@@ -1028,7 +1036,7 @@ def add_containers_from_inventory():
                 'number': formatted_number,
                 'KP': data.get('kp') or None,
                 'booking': data.get('booking') or None,
-                'status': data.get('status') or 'Направлен в Китай',
+                'status': data.get('status') or 'В Китае',
                 'location': data.get('location') or None,
                 'delivery_date': data.get('delivery_date') or None,
                 'pickup_date': data.get('pickup_date') or None,
