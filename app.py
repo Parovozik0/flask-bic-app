@@ -9,14 +9,43 @@ from sqlalchemy.exc import SQLAlchemyError
 import re
 import pandas as pd
 from flask_socketio import SocketIO, emit
+import redis
+from flask_session import Session
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.getenv('SECRET_KEY', os.urandom(24))
 app.config.from_object(Config)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.config['DEBUG'] = True
+app.config['DEBUG'] = False  # Disable debug in production
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+# Configure Socket.IO with Redis for session persistence and reduced memory usage
+redis_url = os.getenv('REDIS_URL')
+if redis_url:
+    app.config['SESSION_TYPE'] = 'redis'
+    app.config['SESSION_REDIS'] = redis.from_url(redis_url)
+    app.config['SESSION_PERMANENT'] = False
+    app.config['SESSION_USE_SIGNER'] = True
+    Session(app)
+    socketio = SocketIO(
+        app, 
+        cors_allowed_origins="*",
+        message_queue=redis_url,
+        async_mode='eventlet',
+        ping_timeout=60,
+        ping_interval=25,
+        engineio_logger=False,
+        logger=False
+    )
+else:
+    socketio = SocketIO(
+        app, 
+        cors_allowed_origins="*",
+        async_mode='eventlet',
+        ping_timeout=60,
+        ping_interval=25,
+        engineio_logger=False,
+        logger=False
+    )
 
 print("SQLALCHEMY_DATABASE_URI:", app.config['SQLALCHEMY_DATABASE_URI'])
 
@@ -1503,6 +1532,39 @@ def get_internal_numbers():
         return jsonify({
             'error': f'Ошибка при получении данных: {str(e)}'
         }), 500
+
+@app.route('/get_internal_number_details', methods=['POST'])
+def get_internal_number_details():
+    try:
+        internal_number = request.form.get('internal_number', '')
+        if not internal_number:
+            return jsonify({'error': 'Внутренний номер не указан'}), 400
+            
+        # Ищем внутренний номер в базе
+        internal_number_obj = InternalNumber.query.filter_by(internal_number=internal_number).first()
+        
+        if not internal_number_obj:
+            return jsonify({'error': 'Внутренний номер не найден'}), 404
+            
+        # Функция для очистки значений
+        def clean_value(value):
+            if value is None or value == '' or value == "None":
+                return ''
+            return value
+            
+        # Формируем ответ с деталями внутреннего номера
+        details = {
+            'internal_number': clean_value(internal_number_obj.internal_number),
+            'pod_direction': clean_value(internal_number_obj.pod_direction),
+            'quantity': internal_number_obj.quantity,
+            'type_size': clean_value(internal_number_obj.type_size),
+            'cargo': clean_value(internal_number_obj.cargo)
+        }
+        
+        return jsonify({'details': details})
+    except Exception as e:
+        app.logger.error(f'Ошибка при получении деталей внутреннего номера: {str(e)}')
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):

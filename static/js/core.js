@@ -104,7 +104,12 @@ function setupSocket() {
         console.error('Socket.IO client (io) is not loaded!');
         return;
     }
-    const socket = io();
+    const socket = io({
+        transports: ['websocket', 'polling'],
+        upgrade: true,
+        pingTimeout: 60000, // 60 секунд
+        pingInterval: 25000 // 25 секунд
+    });
     socket.on('connect', function() {
         console.log('Socket.IO connected');
     });

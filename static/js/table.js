@@ -17,24 +17,19 @@ async function updateTable(filters = {}) {
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) return '';
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    }
-
-    try {
-        // Отображаем индикатор загрузки
+    }    try {
+        // Индикатор загрузки убран по требованию
         const loadingIndicator = document.createElement('div');
-        loadingIndicator.className = 'loading-indicator';
-        loadingIndicator.textContent = 'Обновление данных...';
-        document.body.appendChild(loadingIndicator);
+        loadingIndicator.style.display = 'none'; // Скрываем индикатор
 
         try {
             // Отправляем запрос на сервер с учетом фильтров
             let url = endpoint + params;
-            
-            // Для страницы buking, добавим параметры фильтрации в URL если они есть
+              // Для страницы buking, добавим параметры фильтрации в URL если они есть
             if (currentPage === 'buking' && Object.keys(filters).length > 0) {
                 const filterParams = new URLSearchParams();
                 
-                if (filters.number) filterParams.append('internal_number', filters.number);
+                if (filters.internalNumber) filterParams.append('internal_number', filters.internalNumber);
                 if (filters.podDirection) filterParams.append('pod_direction', filters.podDirection);
                 if (filters.quantity) filterParams.append('quantity', filters.quantity);
                 if (filters.typeSize) filterParams.append('type_size', filters.typeSize);
@@ -58,25 +53,43 @@ async function updateTable(filters = {}) {
                 const header = document.querySelector('.header h1');
                 if (header) {
                     header.textContent = `Внутренние номера: ${filteredItems.length}`;
-                }
-                
-                // Обновляем содержимое таблицы
+                }                // Обновляем содержимое таблицы
                 const tbody = document.querySelector('.table-container tbody');
                 if (tbody) {
-                    tbody.innerHTML = filteredItems.map(item => `
-                        <tr class="internal-number-row" data-internal-number="${item.internal_number}" ondblclick="handleRowClick('${item.internal_number}')">
-                            <td>${item.internal_number}</td>
-                            <td>${item.quantity}</td>
-                            <td>${item.type_size}</td>
-                            <td>${item.pod_direction}</td>
-                            <td>${item.cargo || ''}</td>
-                            <td>${item.booking_count}</td>
-                        </tr>
-                    `).join('');
+                    // Сохраняем текущее состояние DOM перед обновлением
+                    const oldStyles = {};
+                    document.querySelectorAll('.internal-number-row').forEach(row => {
+                        const internalNumber = row.dataset.internalNumber;
+                        if (internalNumber) {
+                            oldStyles[internalNumber] = {
+                                selected: row.classList.contains('selected'),
+                                cursor: row.style.cursor
+                            };
+                        }
+                    });
+                    
+                    // Воспроизводим точно такой же HTML формат как в исходном файле buking.html
+                    tbody.innerHTML = filteredItems.map(item => {
+                        const oldStyle = oldStyles[item.internal_number] || {};
+                        const isSelected = oldStyle.selected ? ' selected' : '';
+                        return `<tr class="internal-number-row${isSelected}" data-internal-number="${item.internal_number}" ondblclick="handleRowClick('${item.internal_number}')">
+                    <td>${item.internal_number}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.type_size || ''}</td>
+                    <td>${item.pod_direction || ''}</td>
+                    <td>${item.cargo || ''}</td>
+                    <td>${item.booking_count || 0}</td>
+                </tr>`;
+                    }).join('');
                 }
-                
-                // Переинициализируем обработчики событий для строк
+                  // Переинициализируем обработчики событий для строк
                 setupInternalNumberRows();
+                
+                // Дополнительно настраиваем курсор для строк, как при первичной загрузке
+                const rows = document.querySelectorAll('.internal-number-row');
+                rows.forEach(row => {
+                    row.style.cursor = 'pointer';
+                });
             } else {
                 // Для остальных страниц оставляем прежнюю логику
                 filteredItems = currentPage === 'container' ? data.containers :
@@ -216,10 +229,11 @@ async function updateTable(filters = {}) {
                 success: 0,
                 failed: 1,
                 errors: [`Ошибка при обновлении данных: ${error.message}`]
-            });
-        } finally {
-            // Удаляем индикатор загрузки
-            document.body.removeChild(loadingIndicator);
+            });        } finally {
+            // Индикатор загрузки убран
+            if (document.body.contains(loadingIndicator)) {
+                document.body.removeChild(loadingIndicator);
+            }
         }
     } catch (error) {
         console.error('Error in updateTable:', error);
@@ -353,6 +367,13 @@ function attachNotesPopupListeners() {
 }
 
 function attachFilterListeners() {
+    // Если это страница Букинг, обработку фильтров передаем в internalNumbersModule
+    if (currentPage === 'buking' && window.internalNumbersModule) {
+        // Инициализация фильтров будет выполнена в internalNumbersModule.init()
+        console.log('Передаем обработку фильтров в модуль внутренних номеров');
+        return;
+    }
+
     const filterInputs = {
         containerNumber: document.getElementById('filter-container-number'),
         kpNumber: document.getElementById('filter-kp-number'),
@@ -433,6 +454,8 @@ function getCurrentFilters() {
 function setupInternalNumberRows() {
     if (currentPage !== 'buking') return;
     
+    console.log('Настраиваем обработчики для строк с внутренними номерами');
+    
     const internalDetailModal = document.getElementById('internal-number-details-modal');
     if (!internalDetailModal) {
         console.log('Модальное окно internal-number-details-modal не найдено, пропускаем обработку');
@@ -444,12 +467,18 @@ function setupInternalNumberRows() {
         btn.addEventListener('click', () => {
             internalDetailModal.style.display = 'none';
         });
-    });
-    
-    // Добавляем обработчики к строкам с внутренними номерами
+    });    // Добавляем обработчики к строкам с внутренними номерами
     const internalRows = document.querySelectorAll('.internal-number-row');
+    
     internalRows.forEach(row => {
-        row.addEventListener('click', async function() {
+        // Применяем стиль курсора
+        row.style.cursor = 'pointer';
+        
+        // Добавляем обработчик на клик
+        row.addEventListener('click', async function(event) {
+            // Предотвращаем всплытие события, чтобы избежать конфликтов
+            event.stopPropagation();
+            
             const internalNumber = this.dataset.internalNumber;
             if (!internalNumber) return;
             

@@ -329,9 +329,9 @@ function createInternalNumberModal() {
                         </tbody>
                     </table>
                 </div>
-            </div>
-            <div class="internal-modal-footer">
+            </div>            <div class="internal-modal-footer">
                 <div id="error-message"></div>
+                <button id="edit-internal-number-btn" style="background-color: #2196F3 !important;">Редактировать</button>
                 <button class="cancel">Отмена</button>
             </div>
         </div>
@@ -370,6 +370,9 @@ window.showInternalNumberModal = function(internalNumber) {
         
         // Загружаем букинги для выбранного внутреннего номера
         loadBookingsForInternalNumber(internalNumber);
+        
+        // Добавляем обработчик для кнопки "Редактировать"
+        setupEditButtonHandler(internalNumber);
         
         // Отображаем модальное окно
         modal.classList.add('show-modal');
@@ -479,16 +482,8 @@ async function loadBookingsForInternalNumber(internalNumber) {
     }
 }
 
-// Добавляем обработчик для закрытия модального окна при клике вне его области
-document.addEventListener('mousedown', function(event) {
-    const modal = document.getElementById('internal-number-details-modal');
-    if (modal && modal.classList.contains('show-modal')) {
-        const modalContent = modal.querySelector('.internal-modal-content');
-        if (!modalContent.contains(event.target) && event.target === modal) {
-            closeInternalNumberModal();
-        }
-    }
-});
+// Отключаем закрытие модального окна при клике вне его области
+// Этот функционал был удален по запросу пользователя
 
 // Module for handling internal numbers functionality
 window.internalNumbersModule = (function() {
@@ -820,6 +815,48 @@ window.internalNumbersModule = (function() {
                 }
             };
         }
+    }    // Setup filter event handlers
+    function setupFilterHandlers() {
+        // Основной фильтр по внутреннему номеру
+        const internalNumberFilter = document.getElementById('filter-internal-number');
+        if (internalNumberFilter) {
+            internalNumberFilter.addEventListener('input', function() {
+                updateTable(getCurrentFilters());
+            });
+        }
+        
+        // Дополнительные фильтры
+        const additionalFilters = [
+            'filter-pod-direction',
+            'filter-quantity',
+            'filter-type-size',
+            'filter-cargo'
+        ];
+        
+        additionalFilters.forEach(filterId => {
+            const filter = document.getElementById(filterId);
+            if (filter) {
+                filter.addEventListener('input', function() {
+                    updateTable(getCurrentFilters());
+                });
+            }
+        });
+        
+        // Кнопка обновления
+        const refreshButton = document.querySelector('.refresh');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', function() {
+                // Очистка всех фильтров
+                if (internalNumberFilter) internalNumberFilter.value = '';
+                additionalFilters.forEach(filterId => {
+                    const filter = document.getElementById(filterId);
+                    if (filter) filter.value = '';
+                });
+                
+                // Обновление таблицы
+                updateTable({});
+            });
+        }
     }
 
     // Export public methods
@@ -828,6 +865,7 @@ window.internalNumbersModule = (function() {
             createModals();
             setupAddModalHandlers();
             setupAddButton();
+            setupFilterHandlers();  // Добавлен вызов новой функции
         },
         updateTable: updateTable,
         getCurrentFilters: getCurrentFilters
@@ -842,4 +880,83 @@ function handleRowClick(internalNumber) {
     } else {
         console.error('Function showInternalNumberModal not found');
     }
+}
+
+// Функция для настройки обработчика кнопки редактирования
+async function setupEditButtonHandler(internalNumber) {
+    const editButton = document.getElementById('edit-internal-number-btn');
+    if (!editButton) return;
+    
+    // Удаляем существующие обработчики
+    editButton.replaceWith(editButton.cloneNode(true));
+    const newEditButton = document.getElementById('edit-internal-number-btn');
+    
+    newEditButton.addEventListener('click', async function() {
+        console.log('Редактирование внутреннего номера:', internalNumber);
+        
+        try {
+            // Получаем данные о внутреннем номере для предзаполнения формы
+            const response = await fetch('/get_internal_number_details', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `internal_number=${encodeURIComponent(internalNumber)}`
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Ошибка HTTP: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Закрываем текущее модальное окно
+            closeInternalNumberModal();
+            
+            // Открываем модальное окно редактирования и заполняем его данными
+            openEditInternalNumberModal(data.details || {});
+        } catch (error) {
+            console.error('Ошибка при получении данных внутреннего номера:', error);
+            
+            // Показываем сообщение об ошибке
+            const errorMessage = document.getElementById('error-message');
+            if (errorMessage) {
+                errorMessage.textContent = `Ошибка: ${error.message}`;
+                errorMessage.style.color = 'red';
+                
+                // Скрываем сообщение через 3 секунды
+                setTimeout(() => {
+                    errorMessage.textContent = '';
+                }, 3000);
+            }
+        }
+    });
+}
+
+// Функция для открытия модального окна редактирования внутреннего номера
+function openEditInternalNumberModal(details) {
+    console.log('Открытие модального окна для редактирования внутреннего номера:', details);
+    
+    // Получаем модальное окно добавления внутреннего номера (оно же используется для редактирования)
+    const addModal = document.getElementById('add-internal-modal');
+    if (!addModal) {
+        console.error('Модальное окно add-internal-modal не найдено');
+        return;
+    }
+    
+    // Заполняем форму полученными данными
+    document.getElementById('internal-number').value = details.internal_number || '';
+    document.getElementById('pod-direction').value = details.pod_direction || '';
+    document.getElementById('quantity').value = details.quantity || '';
+    document.getElementById('type-size').value = details.type_size || '';
+    document.getElementById('cargo').value = details.cargo || '';
+    
+    // Меняем заголовок модального окна для отображения режима редактирования
+    const modalHeader = addModal.querySelector('.modal-header h2');
+    if (modalHeader) {
+        modalHeader.textContent = 'Редактировать внутренний номер';
+    }
+    
+    // Показываем модальное окно
+    addModal.style.display = 'block';
 }
