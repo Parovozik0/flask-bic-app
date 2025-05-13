@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+		<meta http-equiv="X-UA-Compatible" content="ie=edge">
+		<meta name="description" content="">
+		<meta name="keywords" content="">
+		<link rel="shortcut icon" type="image/x-icon" href="">
+					<title>Placepuppy</title>
+		
+										
+										
+					<link href="/user/plugins/markdown-notices/assets/notices.css" type="text/css" rel="stylesheet">
+<link href="/user/plugins/form/assets/form-styles.css" type="text/css" rel="stylesheet">
+<link href="/user/plugins/langswitcher/css/langswitcher.css" type="text/css" rel="stylesheet">
+<link href="/user/plugins/login/css/login.css" type="text/css" rel="stylesheet">
+<link href="/user/themes/pup/vendor/bootstrap/css/bootstrap.min.css" type="text/css" rel="stylesheet">
+<link href="/user/themes/pup/styles/style.css" type="text/css" rel="stylesheet">
+
+			
+		
+	</head>
+	<body>
+
+              <div class="index-page">
+        <div class="index-container">
+        <div class="puppy-container">
+            <div class="puppy-box">
+                <h1>Placepuppy</h1>
+                  <p>A quick and simple service for getting pictures of puppies for use as placeholders in
+your designs or code. Just put your image size (width <span class="amp">&amp; </span>height)
+after our URL and you'll get a placeholder.
+Like this: <a href="https://place-puppy.com/puppy/y:200/x:300">https://place-puppy.com/puppy/y:200/x:300</a></p>
+            </div>
+
+            <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/7/c/e/2/3/7ce23a728829991ecc9b9352d3e0775f014dc950-00.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/7/4/6/7/4/74674d40845f9e88b0786140f2574ce12fa0e56e-00.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/4/0/1/1/c/4011c16ab44b0c3b73668aaa5c48627f8a557d0c-00.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/5/7/e/9/c/57e9c56d767e2243e0ced9ef2582224b806f9e7b-00.jpg">
+                        <img class="image" src="/images/5/7/e/9/c/57e9c56d767e2243e0ced9ef2582224b806f9e7b-00.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+              <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/7/b/c/f/d/7bcfd4dcc1da3830c2797c5d437b978a36e81924-01.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/0/5/e/b/1/05eb10eb7b00e3f21e71e3891fdd1838778e6eb7-01.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/c/b/8/6/4/cb864d210bf6eb351e7ac9e8152f3924cd09e95e-01.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/c/c/e/8/d/cce8de65293c88e8493af4b671611e524900fbf1-01.jpg">
+                        <img class="image" src="/images/c/c/e/8/d/cce8de65293c88e8493af4b671611e524900fbf1-01.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+              <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/8/4/5/b/6/845b664f0ce2cafac5f43622a15cc0d9dd89e308-02.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/8/5/7/e/8/857e8158f2263cbea537c8e44c04891f6759c05c-02.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/7/5/1/d/f/751dfad0cf63ac25fa7ddea8b761f3559367defa-02.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/c/0/e/b/d/c0ebd725e0721b7b06b03503d2f78ed9bf3cb8a5-02.jpg">
+                        <img class="image" src="/images/c/0/e/b/d/c0ebd725e0721b7b06b03503d2f78ed9bf3cb8a5-02.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+              
+              <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/4/c/3/1/b/4c31b29884c590fb1a40147dc767c1496d13fc03-03.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/6/c/5/f/7/6c5f79f419fb9de0ee561cd1770e412954f10958-03.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/f/1/0/7/4/f107405ab867aa88d70455129b7a567e6f65442d-03.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/a/9/f/0/5/a9f05d9c0866d20199dde39f74d694c46af44433-03.jpg">
+                        <img class="image" src="/images/a/9/f/0/5/a9f05d9c0866d20199dde39f74d694c46af44433-03.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+              <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/5/1/9/e/6/519e68101f3dad709732c4f3829e8b22bdd949c5-04.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/a/4/e/b/9/a4eb9437a477eeecdac99a4caf4f9ffbcf14a996-04.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/9/8/2/e/a/982ea56115cdcaadc19658a1fd71ea41e5c9df0e-04.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/f/5/d/4/e/f5d4e914a9aa36ea5de4d4eba8d6f2759aad6391-04.jpg">
+                        <img class="image" src="/images/f/5/d/4/e/f5d4e914a9aa36ea5de4d4eba8d6f2759aad6391-04.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+              <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/5/0/9/b/5/509b5c920722d9e5255db52b5013ed5705b9c80d-05.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/3/a/1/0/e/3a10e95309bf57f901181577c8cf8f6480ef0674-05.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/2/a/b/0/8/2ab088fb62764deb3049e6869a3bca2fca9457fd-05.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/4/7/4/5/2/4745282feb73a266a405144329bdf6e1cb9ee82a-05.jpg">
+                        <img class="image" src="/images/4/7/4/5/2/4745282feb73a266a405144329bdf6e1cb9ee82a-05.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+              <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/8/2/f/7/3/82f73913826d6eacfef0d816c3388ce8b0c1898d-06.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/0/b/1/9/2/0b192e667e2c4366800aa1e9f88e2b7f98a7c84a-06.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/f/c/3/b/0/fc3b0c9375c468b41d50297e167065f96748844a-06.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/0/e/9/e/6/0e9e606c05782d5b0dbf143e6a0227e1a4373d87-06.jpg">
+                        <img class="image" src="/images/0/e/9/e/6/0e9e606c05782d5b0dbf143e6a0227e1a4373d87-06.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+              <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/9/d/e/5/4/9de54c00b6931c66e2726a63a94d5a4b1d68a05a-07.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/3/2/5/e/e/325eea46b8286cfa5e258a9f451bf5e535566834-07.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/9/c/9/f/2/9c9f2a79aca83e78e3900cb7eaa2c9a3c3d58488-07.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/a/e/3/d/5/ae3d5c967f98e1bd4fce380adffc60d2d2c401ee-07.jpg">
+                        <img class="image" src="/images/c/c/e/8/d/cce8de65293c88e8493af4b671611e524900fbf1-01.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+              <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/c/0/6/b/2/c06b2f6aa0132fd9c110a52b2bdaef40d4407330-08.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/2/c/c/1/d/2cc1d8cee1e315c8184439fbb31e7c02aa0dd0e3-08.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/0/2/9/d/f/029df46b19eab609ae4018a27ee21e7449f3327e-08.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/f/6/e/1/5/f6e15f6924976c8fd20b32fdb1dc0d1827c58069-08.jpg">
+                        <img class="image" src="/images/f/6/e/1/5/f6e15f6924976c8fd20b32fdb1dc0d1827c58069-08.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+              <div class="puppy-box">
+                    <picture>
+                        <source media="(max-width: 640px)" srcset="/images/b/f/8/1/1/bf8111034e3b2a690f8daa2884835e825d19b17f-09.jpg">
+                        <source media="(max-width: 960px)" srcset="/images/a/e/7/5/1/ae7517de0196ad9f8879044bfa45e5b2378ed4a8-09.jpg">
+                        <source media="(max-width: 1280px)" srcset="/images/8/e/6/c/4/8e6c42cd31bd1d2ddd37c6ccd31ac6318b3ce791-09.jpg">
+                        <source media="(min-width: 1281px)" srcset="/images/d/d/a/8/d/dda8d2a8024b4cba173e77603f1937372be8a77c-09.jpg">
+                        <img class="image" src="/images/d/d/a/8/d/dda8d2a8024b4cba173e77603f1937372be8a77c-09.jpg"
+                            alt="A dog">
+                    </picture>
+              </div>
+        </div>
+      </div>  
+    <footer class="footer">
+      <div class="container">
+        <div class="row mt-4">
+          <div class="col text-center">
+                All images licensed via <a href="https://pixabay.com/en/service/terms/#usage">Creative Commons 0 </a><span class="amp">&
+                </span><a href="https://www.pexels.com/photo-license/">Pexels License — </a>Inspired by <a
+                    href="http://placekitten.com">placekitten</a>
+            
+        </div>
+      </div>
+
+    </footer>
+</div>
+
+							<script src="/user/themes/pup/vendor/bootstrap/js/bootstrap.bundle.js"></script>
+
+			
+		</body>
+	</html>

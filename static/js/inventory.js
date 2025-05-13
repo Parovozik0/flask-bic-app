@@ -11,11 +11,96 @@ function excelDateToString(excelDate) {
     return `${day}.${month}.${year}`;
 }
 
+// Validate imported Excel data to check if it's empty or invalid
+function validateExcelData(json, currentPage) {
+    const errors = [];
+    
+    // Check if there's any data at all
+    if (!json || json.length <= 1) {
+        errors.push('Таблица пуста или не содержит данных');
+        return { valid: false, errors };
+    }
+    
+    // Check if headers exist
+    const headers = json[0];
+    if (!headers || headers.length === 0) {
+        errors.push('В таблице отсутствуют заголовки столбцов');
+        return { valid: false, errors };
+    }
+    
+    // Check if there's actual data in rows (not just empty rows)
+    const dataRows = json.slice(1);
+    const nonEmptyRows = dataRows.filter(row => 
+        row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== '')
+    );
+    
+    if (nonEmptyRows.length === 0) {
+        errors.push('Таблица не содержит данных в строках');
+        return { valid: false, errors };
+    }
+    
+    // Check for required columns based on the current page
+    // For now, we just validate that there's enough data to work with
+    // More specific validations can be added later
+    
+    return { valid: true, errors };
+}
+
+// Validate date format to prevent database errors
+function validateDate(dateStr) {
+    if (!dateStr) return { valid: true, dateStr };
+    
+    // Convert to string if it's not already
+    dateStr = String(dateStr).trim();
+    
+    // Catch common errors - single or double digit values
+    if (/^\d{1,2}$/.test(dateStr)) {
+        return { 
+            valid: false, 
+            error: `Неверный формат даты: "${dateStr}". Необходим полный формат даты (ДД.ММ.ГГГГ)`
+        };
+    }
+    
+    // Check for proper date format DD.MM.YYYY
+    const dateRegex = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+    if (!dateRegex.test(dateStr)) {
+        return { 
+            valid: false, 
+            error: `Неверный формат даты: "${dateStr}". Ожидаемый формат: ДД.ММ.ГГГГ`
+        };
+    }
+    
+    // Further validate the date is real
+    const parts = dateStr.match(dateRegex);
+    const day = parseInt(parts[1], 10);
+    const month = parseInt(parts[2], 10) - 1;
+    const year = parseInt(parts[3], 10);
+    const date = new Date(year, month, day);
+    
+    if (
+        date.getFullYear() !== year || 
+        date.getMonth() !== month || 
+        date.getDate() !== day
+    ) {
+        return { 
+            valid: false, 
+            error: `Недействительная дата: "${dateStr}". Дата не существует в календаре`
+        };
+    }
+    
+    return { valid: true, dateStr };
+}
+
 // Setup inventory modal functionality
 function setupInventoryModal() {
     // Check if XLSX library is available
     if (typeof XLSX === 'undefined') {
         console.error('XLSX library not loaded. Excel import functionality will not work.');
+    }
+    
+    // Only proceed with setup on container page
+    if (currentPage !== 'container') {
+        return; // Exit the function if not on container page
     }
     
     const inventoryButton = document.querySelector('.inventory');
@@ -56,7 +141,12 @@ function setupInventoryModal() {
             
             // Check if XLSX is available before proceeding
             if (typeof XLSX === 'undefined') {
-                alert('Excel library not loaded. Please refresh the page or contact support.');
+                showNotification({
+                    status: 'error',
+                    success: 0,
+                    failed: 1,
+                    errors: ['Excel библиотека не загружена. Пожалуйста, обновите страницу или обратитесь в поддержку.']
+                });
                 return;
             }
             
@@ -72,6 +162,47 @@ function setupInventoryModal() {
                         const sheetName = workbook.SheetNames[sheetIndex];
                         const sheet = workbook.Sheets[sheetName];
                         const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        
+                        // Validate the imported data
+                        const validationResult = validateExcelData(json, currentPage);
+                        if (!validationResult.valid) {
+                            // Убираем уведомление о проблеме с данными листа
+                            // showNotification({
+                            //     status: 'error',
+                            //     success: 0,
+                            //     failed: 1,
+                            //     errors: [`В листе "${sheetName}" ${validationResult.errors[0].toLowerCase()}`]
+                            // });
+                            
+                            // Генерируем только вкладки листов, без отображения данных текущего листа
+                            let tabs = '<div id="import-sheet-tabs">';
+                            workbook.SheetNames.forEach((name, idx) => {
+                                tabs += `<div class="sheet-tab${idx === sheetIndex ? ' active' : ''}" data-sheet="${idx}">${name}</div>`;
+                            });
+                            tabs += '</div>';
+                            
+                            // Добавим информационное сообщение для наглядности
+                            let emptyMessage = '<div class="empty-sheet-message" style="padding: 20px; text-align: center; color: #888;">';
+                            emptyMessage += `<p>Лист "${sheetName}" не подходит для импорта</p>`;
+                            emptyMessage += '<p>Пожалуйста, выберите другой лист или загрузите корректную таблицу</p>';
+                            
+                            inventoryPreview.innerHTML = tabs + emptyMessage;
+                            
+                            // Сохраняем обработчики для вкладок
+                            inventoryPreview.querySelectorAll('.sheet-tab').forEach(tab => {
+                                tab.onclick = function() {
+                                    renderSheet(+tab.dataset.sheet);
+                                };
+                            });
+                            
+                            // Сбрасываем данные для этого листа
+                            inventoryData = [];
+                            inventoryHeaders = [];
+                            selectedColumns = [];
+                            
+                            return;
+                        }
+
                         if (!json.length) return;
                         inventoryHeaders = json[0];
                         inventoryData = json.slice(1);
@@ -161,12 +292,22 @@ function setupInventoryModal() {
                     renderSheet(0);
                 } catch (error) {
                     console.error('Error processing Excel file:', error);
-                    alert('Ошибка при обработке Excel-файла: ' + error.message);
+                    showNotification({
+                        status: 'error',
+                        success: 0,
+                        failed: 1,
+                        errors: ['Ошибка при обработке Excel-файла: ' + error.message]
+                    });
                 }
             };
             reader.onerror = function(evt) {
                 console.error('Error reading file:', evt);
-                alert('Ошибка чтения файла');
+                showNotification({
+                    status: 'error',
+                    success: 0,
+                    failed: 1,
+                    errors: ['Ошибка чтения файла']
+                });
             };
             reader.readAsArrayBuffer(file);
         };
@@ -180,7 +321,12 @@ function setupInventoryModal() {
                 if (type && type !== 'none') colMap[type] = i;
             });
             if (!inventoryData.length || colMap.number === undefined) {
-                alert('Выберите хотя бы столбец с номерами!');
+                showNotification({
+                    status: 'error',
+                    success: 0,
+                    failed: 1,
+                    errors: ['Выберите хотя бы столбец с номерами!']
+                });
                 return;
             }
             // Form TSV for sending
@@ -209,7 +355,12 @@ function setupInventoryModal() {
                 showNotification(result);
                 await updateTable(getCurrentFilters());
             } else {
-                alert(result.errors ? result.errors.join('\n') : 'Ошибка импорта');
+                showNotification({
+                    status: 'error',
+                    success: result.success || 0,
+                    failed: result.failed || 0,
+                    errors: result.errors || ['Ошибка импорта']
+                });
             }
         };
     }

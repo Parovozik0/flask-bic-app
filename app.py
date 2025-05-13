@@ -107,46 +107,137 @@ def container():
 @app.route('/buking', methods=['GET', 'POST'])
 def buking():
     try:
-        booking_number = ''
-        container_number = ''
-        params = {}
+        internal_number_filter = ''
+        
         if request.method == 'POST':
-            container_number = request.form.get('container_number', '')
-            booking_number = request.form.get('booking_number', '')
-            query = "SELECT bookings.number, bookings.notes FROM bookings"
-            if container_number:
-                query += " INNER JOIN containers ON containers.booking = bookings.number WHERE containers.number = :container_number"
-                params['container_number'] = container_number
-                if booking_number:
-                    query += " AND bookings.number = :booking_number"
-                    params['booking_number'] = booking_number
-            elif booking_number:
-                query = "SELECT number, notes FROM bookings WHERE number LIKE :booking_number"
-                params['booking_number'] = f"%{booking_number}%"
-            result = db.session.execute(text(query), params)
-            bookings_raw = result.fetchall()
+            internal_number_filter = request.form.get('internal_number_filter', '')
+            
+            # Запрос внутренних номеров с фильтрацией
+            if internal_number_filter:
+                # Используем прямой запрос к модели InternalNumber
+                result = db.session.query(InternalNumber)\
+                    .filter(InternalNumber.internal_number.ilike(f'%{internal_number_filter}%'))\
+                    .order_by(InternalNumber.internal_number)
+            else:
+                # Запрос всех внутренних номеров из модели InternalNumber
+                result = db.session.query(InternalNumber)\
+                    .order_by(InternalNumber.internal_number)
         else:
-            result = db.session.execute(text("SELECT * FROM bookings"))
-            bookings_raw = result.fetchall()
+            # Запрос всех внутренних номеров из модели InternalNumber
+            result = db.session.query(InternalNumber)\
+                .order_by(InternalNumber.internal_number)
 
         def clean_value(value):
             return '' if value is None else value
 
-        bookings = [
-            {
-                'number': clean_value(row.number),
-                'notes': clean_value(row.notes)
-            } for row in bookings_raw
-        ]
-        bookings_count = len(bookings)
+        # Для каждого внутреннего номера получаем количество связанных букингов
+        internal_numbers = []
+        for row in result.all():
+            # Получаем количество букингов для текущего внутреннего номера
+            booking_count = db.session.query(Booking)\
+                .filter(Booking.internal_number == row.internal_number)\
+                .count()
+
+            internal_numbers.append({
+                'internal_number': clean_value(row.internal_number),
+                'pod_direction': clean_value(row.pod_direction),
+                'quantity': row.quantity,
+                'type_size': clean_value(row.type_size),
+                'cargo': clean_value(row.cargo),
+                'booking_count': booking_count
+            })
+        
+        internal_numbers_count = len(internal_numbers)
 
         return render_template('buking.html', 
-                              bookings=bookings, 
-                              bookings_count=bookings_count,
-                              container_number=container_number,
-                              booking_number=booking_number)
+                              internal_numbers=internal_numbers, 
+                              internal_numbers_count=internal_numbers_count,
+                              internal_number_filter=internal_number_filter)
     except Exception as e:
         return f"Произошла ошибка: {e}"
+
+@app.route('/add_buking', methods=['POST'])
+def add_buking():
+    try:
+        # Получаем данные из формы
+        booking_numbers = request.form.get('booking_numbers', '')
+        internal_number = request.form.get('internal_number', '')
+        line = request.form.get('line', '')
+        quantity = request.form.get('quantity', '')
+        vessel = request.form.get('vessel', '')
+        
+        # Проверяем обязательные поля
+        if not booking_numbers or not internal_number:
+            return jsonify({
+                'success': 0,
+                'failed': 1,
+                'errors': ['Необходимо указать номера букингов и внутренний номер'],
+                'status': 'error'
+            })
+        
+        # Разбиваем список букингов на отдельные номера
+        booking_list = [num.strip() for num in booking_numbers.replace(',', '\n').split('\n') if num.strip()]
+        
+        if not booking_list:
+            return jsonify({
+                'success': 0,
+                'failed': 1,
+                'errors': ['Список номеров букингов пуст'],
+                'status': 'error'
+            })
+        
+        added_count = 0
+        failed_count = 0
+        errors = []
+        
+        # Добавляем каждый букинг в базу с указанным внутренним номером
+        for booking_number in booking_list:
+            try:
+                result = db.session.execute(text("""
+                    INSERT INTO bookings (booking, internal_number, line, quantity, vessel)
+                    VALUES (:booking, :internal_number, :line, :quantity, :vessel)
+                    ON CONFLICT (booking) DO UPDATE SET 
+                        internal_number = :internal_number,
+                        line = :line,
+                        quantity = :quantity,
+                        vessel = :vessel
+                """), {
+                    'booking': booking_number,
+                    'internal_number': internal_number,
+                    'line': line,
+                    'quantity': int(quantity) if quantity else 0,
+                    'vessel': vessel
+                })
+                added_count += 1
+            except SQLAlchemyError as e:
+                failed_count += 1
+                errors.append(f"Ошибка при добавлении букинга {booking_number}: {str(e)}")
+    
+        db.session.commit()
+        
+        return jsonify({
+            'success': added_count,
+            'failed': failed_count,
+            'errors': errors if errors else None,
+            'status': 'success' if added_count > 0 else 'error'
+        })
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({
+            'success': 0,
+            'failed': 1,
+            'errors': [f'Ошибка базы данных: {str(e)}'],
+            'status': 'error'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': 0,
+            'failed': 1,
+            'errors': [f'Непредвиденная ошибка: {str(e)}'],
+            'status': 'error'
+        })
 
 @app.route('/kp', methods=['GET', 'POST'])
 def kp():
@@ -204,31 +295,6 @@ def kp():
                               location=location)
     except Exception as e:
         return f"Произошла ошибка: {e}"
-
-@app.route('/add_buking', methods=['POST'])
-def add_buking():
-    try:
-        buking_numbers = request.form['buking_number']
-        buking_list = [num for num in buking_numbers.split() if num.strip()]
-        added_count = 0
-        for buking_number in buking_list:
-            result = db.session.execute(text("""
-            INSERT INTO bookings (number)
-            VALUES (:number)
-            ON CONFLICT (number) DO NOTHING
-            """), {'number': buking_number})
-            if result.rowcount > 0:
-                added_count += 1
-    
-        db.session.commit()
-        if added_count > 0:
-            flash(f'Успешно добавлено {added_count} букинг(ов)!', 'success')
-        else:
-            flash('Ни один букинг не был добавлен. Проверьте, что они были правильно вписаны', 'error')
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        flash('Ошибка при добавлении букингов. Попробуйте еще раз.', 'error')
-    return redirect(url_for('buking'))
 
 @app.route('/add_kp', methods=['POST'])
 def add_kp():
@@ -341,7 +407,7 @@ def search_numbers():
     if search_type == 'container':
         results = Container.query.filter(Container.number.ilike(f'%{query}%')).all()
     elif search_type == 'booking':
-        results = Booking.query.filter(Booking.number.ilike(f'%{query}%')).all()
+        results = Booking.query.filter(Booking.booking.ilike(f'%{query}%')).all()
     elif search_type == 'KP':
         results = KP.query.filter(KP.number.ilike(f'%{query}%')).all()
     elif search_type == 'location':
@@ -350,7 +416,7 @@ def search_numbers():
     else:
         return jsonify([])
 
-    return jsonify([result.number for result in results])
+    return jsonify([result.booking for result in results])
 
 @app.route('/add_container_sheet', methods=['POST'])
 def add_container_sheet():
@@ -452,7 +518,7 @@ def delete_containers():
 def delete_buking():
     try:
         button_number = request.form.get('hidden_input')
-        buking = db.session.query(Booking).filter_by(number=button_number).first()
+        buking = db.session.query(Booking).filter_by(booking=button_number).first()
         if buking:
             db.session.delete(buking)
             db.session.commit()
@@ -565,7 +631,31 @@ def update_container():
         })
     except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({'success': 0, 'failed': 1, 'errors': [str(e)]})
+        error_msg = str(e)
+        user_friendly_error = str(e)
+        
+        # Улучшенная обработка ошибок с внешним ключом
+        if "ForeignKeyViolation" in error_msg:
+            # Ошибка связи с букингом
+            if "containers_booking_fkey" in error_msg:
+                booking_value = booking or "не указан"
+                user_friendly_error = f"Букинг '{booking_value}' не существует в системе. Вы должны сначала создать букинг с этим номером."
+            
+            # Ошибка связи с КП
+            elif "containers_kp_fkey" in error_msg:
+                kp_value = kp or "не указан"
+                user_friendly_error = f"КП '{kp_value}' не существует в системе. Вы должны сначала создать КП с этим номером."
+            
+            # Другие ошибки внешнего ключа
+            else:
+                user_friendly_error = "Ошибка связи с внешней таблицей. Один из указанных идентификаторов отсутствует в системе."
+        
+        return jsonify({
+            'success': 0,
+            'failed': 1,
+            'errors': [user_friendly_error],
+            'status': 'error'
+        })
 
 @app.route('/get_kp_numbers', methods=['GET'])
 def get_kp_numbers():
@@ -579,8 +669,8 @@ def get_kp_numbers():
 @app.route('/get_booking_numbers', methods=['GET'])
 def get_booking_numbers():
     try:
-        result = db.session.execute(text("SELECT number FROM bookings"))
-        booking_numbers = [row.number for row in result.fetchall()]
+        result = db.session.execute(text("SELECT booking FROM bookings"))
+        booking_numbers = [row.booking for row in result.fetchall()]
         return jsonify(booking_numbers)
     except SQLAlchemyError as e:
         return jsonify({'error': str(e)}), 500
@@ -717,7 +807,7 @@ def get_kps():
 @app.route('/get_bookings', methods=['GET'])
 def get_bookings():
     try:
-        result = db.session.execute(text("SELECT * FROM bookings"))
+        result = db.session.execute(text("SELECT booking, internal_number, line, quantity, vessel FROM bookings"))
         
         def clean_value(value):
             if value is None or value == '' or value == "None":
@@ -726,8 +816,11 @@ def get_bookings():
 
         bookings = [
             {
-                'number': clean_value(row.number),
-                'notes': clean_value(row.notes)
+                'booking': clean_value(row.booking),
+                'internal_number': clean_value(row.internal_number),
+                'line': clean_value(row.line),
+                'quantity': clean_value(row.quantity),
+                'vessel': clean_value(row.vessel)
             } for row in result.fetchall()
         ]
         return jsonify({'bookings': bookings, 'bookings_count': len(bookings)})
@@ -780,8 +873,8 @@ def delete_bookings():
 
         for booking_number in booking_list:
             result = db.session.execute(text("""
-                DELETE FROM bookings WHERE number = :number
-            """), {'number': booking_number})
+                DELETE FROM bookings WHERE booking = :booking
+            """), {'booking': booking_number})
             if result.rowcount > 0:
                 deleted_count += 1
             else:
@@ -836,13 +929,16 @@ def get_booking_data():
         
         for number in booking_list:
             result = db.session.execute(
-                text("SELECT * FROM bookings WHERE number = :number"),
-                {'number': number}
+                text("SELECT booking, internal_number, line, quantity, vessel FROM bookings WHERE booking = :booking"),
+                {'booking': number}
             ).fetchone()
             if result:
                 bookings.append({
-                    'number': result.number,
-                    'notes': result.notes or ''
+                    'booking': result.booking,
+                    'internal_number': result.internal_number or '',
+                    'line': result.line or '',
+                    'quantity': result.quantity or '',
+                    'vessel': result.vessel or ''
                 })
                 
         return jsonify({'bookings': bookings})
@@ -878,18 +974,24 @@ def update_kp():
 @app.route('/update_booking', methods=['POST'])
 def update_booking():
     try:
-        number = request.form.get('number')
-        notes = request.form.get('notes') or None
+        booking = request.form.get('booking')
+        internal_number = request.form.get('internal_number') or None
+        line = request.form.get('line') or None
+        quantity = request.form.get('quantity') or None
+        vessel = request.form.get('vessel') or None
 
         result = db.session.execute(
             text("""
                 UPDATE bookings 
-                SET notes = :notes
-                WHERE number = :number
+                SET internal_number = :internal_number, line = :line, quantity = :quantity, vessel = :vessel
+                WHERE booking = :booking
             """),
             {
-                'number': number,
-                'notes': notes
+                'booking': booking,
+                'internal_number': internal_number,
+                'line': line,
+                'quantity': quantity,
+                'vessel': vessel
             }
         )
         
@@ -949,6 +1051,10 @@ def add_kp_from_inventory():
 def add_booking_from_inventory():
     try:
         booking_numbers = request.form.get('booking_numbers', '').strip()
+        internal_number = request.form.get('internal_number', '').strip()
+        line = request.form.get('line', '').strip()
+        quantity = request.form.get('quantity', '').strip()
+        vessel = request.form.get('vessel', '').strip()
 
         if not booking_numbers:
             return jsonify({
@@ -965,10 +1071,16 @@ def add_booking_from_inventory():
 
         for booking_number in booking_list:
             result = db.session.execute(text("""
-                INSERT INTO bookings (number)
-                VALUES (:number)
-                ON CONFLICT (number) DO NOTHING
-            """), {'number': booking_number})
+                INSERT INTO bookings (booking, internal_number, line, quantity, vessel)
+                VALUES (:booking, :internal_number, :line, :quantity, :vessel)
+                ON CONFLICT (booking) DO NOTHING
+            """), {
+                'booking': booking_number,
+                'internal_number': internal_number,
+                'line': line,
+                'quantity': quantity,
+                'vessel': vessel
+            })
             if result.rowcount > 0:
                 added_count += 1
             else:
@@ -1031,6 +1143,7 @@ def add_containers_from_inventory():
                 errors.append(f"Контейнер {number}: неверный формат (должно быть 4 буквы + 7 цифр)")
                 continue
             formatted_number = number[:4].upper() + number[4:11].lower()
+            
             # Подготовка полей
             fields = {
                 'number': formatted_number,
@@ -1042,16 +1155,50 @@ def add_containers_from_inventory():
                 'pickup_date': data.get('pickup_date') or None,
                 'notes': data.get('notes') or None
             }
-            # Преобразование дат
+            
+            # Проверка и преобразование дат
+            date_errors = []
             for date_field in ['delivery_date', 'pickup_date']:
                 val = fields[date_field]
-                if val and re.match(r'\d{2}\.\d{2}\.\d{4}', val):
-                    d, m, y = val.split('.')
-                    fields[date_field] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
-                elif val and re.match(r'\d{4}-\d{2}-\d{2}', val):
+                if not val:
+                    fields[date_field] = None
+                    continue
+                    
+                # Проверка коротких значений (только цифры)
+                if re.match(r'^\d{1,2}$', val):
+                    date_errors.append(f"Контейнер {formatted_number}: неверный формат даты '{date_field}': '{val}' (должно быть ДД.ММ.ГГГГ)")
+                    fields[date_field] = None
+                    continue
+                
+                # Преобразование стандартных форматов
+                if re.match(r'\d{2}\.\d{2}\.\d{4}', val):
+                    try:
+                        d, m, y = val.split('.')
+                        day = int(d)
+                        month = int(m)
+                        year = int(y)
+                        
+                        # Проверка валидности даты
+                        if day < 1 or day > 31 or month < 1 or month > 12:
+                            date_errors.append(f"Контейнер {formatted_number}: недействительная дата '{val}' для поля '{date_field}'")
+                            fields[date_field] = None
+                            continue
+                            
+                        fields[date_field] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+                    except ValueError:
+                        date_errors.append(f"Контейнер {formatted_number}: неверный формат даты '{val}' для поля '{date_field}'")
+                        fields[date_field] = None
+                elif re.match(r'\d{4}-\d{2}-\d{2}', val):
                     fields[date_field] = val
                 else:
-                    fields[date_field] = None if not val else val
+                    date_errors.append(f"Контейнер {formatted_number}: неверный формат даты '{val}' для поля '{date_field}' (должно быть ДД.ММ.ГГГГ или ГГГГ-ММ-ДД)")
+                    fields[date_field] = None
+            
+            if date_errors:
+                failed_count += 1
+                errors.extend(date_errors)
+                continue
+                
             # Проверяем существование
             existing = db.session.query(Container).filter_by(number=formatted_number).first()
             if existing:
@@ -1063,13 +1210,299 @@ def add_containers_from_inventory():
             else:
                 db.session.add(Container(**fields))
                 added_count += 1
+        
         db.session.commit()
         if added_count + updated_count > 0:
             socketio.emit('containers_updated', {'action': 'add'})
         return jsonify({'success': added_count, 'updated': updated_count, 'failed': failed_count, 'errors': errors if errors else None, 'status': 'success' if added_count + updated_count > 0 else 'error'})
     except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({'success': 0, 'failed': len(rows) if 'rows' in locals() else 0, 'errors': [f"Ошибка базы данных: {str(e)}"], 'status': 'error'})
+        error_msg = str(e)
+        user_friendly_error = "Ошибка базы данных"
+        
+        # Разбор ошибок формата даты
+        if "InvalidDatetimeFormat" in error_msg:
+            # Извлекаем значение, вызвавшее ошибку
+            match = re.search(r"date: \"(.+?)\"", error_msg)
+            invalid_date = match.group(1) if match else "неизвестное значение"
+            
+            user_friendly_error = f"Ошибка формата даты: '{invalid_date}' не является корректной датой. Используйте формат ДД.ММ.ГГГГ"
+        else:
+            user_friendly_error = f"Ошибка базы данных: {error_msg}"
+            
+        return jsonify({'success': 0, 'failed': len(rows) if 'rows' in locals() else 0, 'errors': [user_friendly_error], 'status': 'error'})
+
+@app.route('/get_bookings_by_internal_number', methods=['POST'])
+def get_bookings_by_internal_number():
+    try:
+        internal_number = request.form.get('internal_number', '')
+        if not internal_number:
+            return jsonify({
+                'success': 0,
+                'bookings': [],
+                'error': 'Внутренний номер не указан'
+            })
+            
+        # Запрос всех букингов с данным внутренним номером
+        result = db.session.execute(
+            text("SELECT booking, internal_number, line, quantity, vessel FROM bookings WHERE internal_number = :internal_number"),
+            {'internal_number': internal_number}
+        )
+        
+        def clean_value(value):
+            if value is None or value == '' or value == "None":
+                return ''
+            return value
+
+        bookings = [
+            {
+                'booking': clean_value(row.booking),
+                'internal_number': clean_value(row.internal_number),
+                'line': clean_value(row.line),
+                'quantity': clean_value(row.quantity),
+                'vessel': clean_value(row.vessel)
+            } for row in result.fetchall()
+        ]
+        
+        return jsonify({
+            'success': 1,
+            'bookings': bookings,
+            'count': len(bookings)
+        })
+    except SQLAlchemyError as e:
+        return jsonify({
+            'success': 0,
+            'bookings': [],
+            'error': str(e)
+        }), 500
+
+@app.route('/get_bookings_by_internal/<internal_number>', methods=['GET'])
+def get_bookings_by_internal(internal_number):
+    try:
+        if not internal_number:
+            return jsonify({
+                'success': False,
+                'bookings': [],
+                'error': 'Внутренний номер не указан'
+            })
+            
+        # Запрос всех букингов с данным внутренним номером
+        bookings_query = db.session.query(Booking).filter(Booking.internal_number == internal_number).all()
+        
+        def clean_value(value):
+            if value is None or value == '' or value == "None":
+                return ''
+            return value
+
+        bookings = []
+        for booking in bookings_query:
+            bookings.append({
+                'id': booking.id,
+                'booking_number': clean_value(booking.booking),
+                'internal_number': clean_value(booking.internal_number),
+                'direction': clean_value(booking.line),
+                'pol': '',  # Эти поля будут добавлены в будущем
+                'pod': '',  # Эти поля будут добавлены в будущем
+                'booking_date': clean_value(booking.booking_date),
+                'quantity': clean_value(booking.quantity),
+                'vessel': clean_value(booking.vessel)
+            })
+        
+        return jsonify({
+            'success': True,
+            'bookings': bookings
+        })
+    except SQLAlchemyError as e:
+        return jsonify({
+            'success': False,
+            'bookings': [],
+            'error': str(e)
+        }), 500
+
+@app.route('/add_internal_number', methods=['POST'])
+def add_internal_number():
+    try:
+        # Получаем данные из формы
+        internal_number = request.form.get('internal_number', '').strip()
+        pod_direction = request.form.get('pod_direction', '').strip()
+        quantity = request.form.get('quantity', '').strip()
+        type_size = request.form.get('type_size', '').strip()
+        cargo = request.form.get('cargo', '').strip()
+        
+        # Проверяем обязательные поля
+        if not internal_number or not pod_direction:
+            return jsonify({
+                'success': 0,
+                'failed': 1,
+                'errors': ['Необходимо указать внутренний номер и POD/направление'],
+                'status': 'error'
+            })
+        
+        # Проверяем формат внутреннего номера (согласно ограничению в БД)
+        if not re.match(r'^[A-Z0-9]+-[0-3][0-9][0-1][0-9][0-9]{4}$', internal_number):
+            return jsonify({
+                'success': 0,
+                'failed': 1,
+                'errors': ['Внутренний номер должен соответствовать формату XXXXX-DDMMYYYY'],
+                'status': 'error'
+            })
+        
+        # Проверяем, существует ли уже такой внутренний номер
+        existing_internal = db.session.query(InternalNumber).filter_by(internal_number=internal_number).first()
+        
+        if existing_internal:
+            # Внутренний номер уже существует, обновляем его
+            existing_internal.pod_direction = pod_direction
+            existing_internal.quantity = int(quantity) if quantity else 0
+            existing_internal.type_size = type_size
+            existing_internal.cargo = cargo
+            db.session.commit()
+            
+            return jsonify({
+                'success': 1,
+                'failed': 0,
+                'errors': None,
+                'status': 'success',
+                'message': f'Внутренний номер {internal_number} успешно обновлен'
+            })
+        else:
+            # Создаем новый внутренний номер
+            new_internal = InternalNumber(
+                internal_number=internal_number,
+                pod_direction=pod_direction,
+                quantity=int(quantity) if quantity else 0,
+                type_size=type_size,
+                cargo=cargo
+            )
+            db.session.add(new_internal)
+            db.session.commit()
+            
+            return jsonify({
+                'success': 1,
+                'failed': 0,
+                'errors': None,
+                'status': 'success',
+                'message': f'Внутренний номер {internal_number} успешно создан'
+            })
+    
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({
+            'success': 0,
+            'failed': 1,
+            'errors': [f'Ошибка базы данных: {str(e)}'],
+            'status': 'error'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': 0,
+            'failed': 1,
+            'errors': [f'Непредвиденная ошибка: {str(e)}'],
+            'status': 'error'
+        })
+
+@app.route('/delete_internal_number', methods=['POST'])
+def delete_internal_number():
+    try:
+        internal_numbers = request.form.get('internal_numbers', '')
+        internal_list = [num.strip() for num in internal_numbers.replace(',', '\n').split('\n') if num.strip()]
+        deleted_count = 0
+        failed_count = 0
+        errors = []
+
+        for internal_number in internal_list:
+            # Находим внутренний номер в базе данных
+            internal_to_delete = db.session.query(InternalNumber).filter_by(internal_number=internal_number).first()
+            if internal_to_delete:
+                # Если найден, удаляем его
+                db.session.delete(internal_to_delete)
+                deleted_count += 1
+            else:
+                failed_count += 1
+                errors.append(f"Внутренний номер {internal_number}: не найден в базе")
+
+        db.session.commit()
+        return jsonify({
+            'success': deleted_count,
+            'failed': failed_count,
+            'errors': errors if errors else None,
+            'status': 'success' if deleted_count > 0 else 'error'
+        })
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({
+            'success': 0,
+            'failed': len(internal_list) if 'internal_list' in locals() else 0,
+            'errors': [f"Ошибка базы данных: {str(e)}"],
+            'status': 'error'
+        })
+
+@app.route('/get_internal_numbers', methods=['GET'])
+def get_internal_numbers():
+    try:
+        # Получаем параметры фильтрации
+        internal_number_filter = request.args.get('internal_number', '')
+        pod_direction_filter = request.args.get('pod_direction', '')
+        quantity_filter = request.args.get('quantity', '')
+        type_size_filter = request.args.get('type_size', '')
+        cargo_filter = request.args.get('cargo', '')
+        
+        # Базовый запрос
+        query = db.session.query(InternalNumber)
+        
+        # Добавляем фильтры, если они указаны
+        if internal_number_filter:
+            query = query.filter(InternalNumber.internal_number.ilike(f'%{internal_number_filter}%'))
+        if pod_direction_filter:
+            query = query.filter(InternalNumber.pod_direction.ilike(f'%{pod_direction_filter}%'))
+        if quantity_filter:
+            try:
+                quantity_int = int(quantity_filter)
+                query = query.filter(InternalNumber.quantity == quantity_int)
+            except ValueError:
+                pass  # Игнорируем фильтр, если значение не число
+        if type_size_filter:
+            query = query.filter(InternalNumber.type_size.ilike(f'%{type_size_filter}%'))
+        if cargo_filter:
+            query = query.filter(InternalNumber.cargo.ilike(f'%{cargo_filter}%'))
+            
+        # Сортировка результатов
+        query = query.order_by(InternalNumber.internal_number)
+        result = query.all()
+        
+        # Функция для очистки значений
+        def clean_value(value):
+            if value is None or value == '' or value == "None":
+                return ''
+            return value
+        
+        # Формируем ответ
+        internal_numbers = []
+        for row in result:
+            # Получаем количество букингов для текущего внутреннего номера
+            booking_count = db.session.query(Booking)\
+                .filter(Booking.internal_number == row.internal_number)\
+                .count()
+
+            internal_numbers.append({
+                'internal_number': clean_value(row.internal_number),
+                'pod_direction': clean_value(row.pod_direction),
+                'quantity': row.quantity,
+                'type_size': clean_value(row.type_size),
+                'cargo': clean_value(row.cargo),
+                'booking_count': booking_count
+            })
+        
+        return jsonify({
+            'internal_numbers': internal_numbers,
+            'internal_numbers_count': len(internal_numbers)
+        })
+    except Exception as e:
+        app.logger.error(f'Ошибка при получении внутренних номеров: {str(e)}')
+        return jsonify({
+            'error': f'Ошибка при получении данных: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):

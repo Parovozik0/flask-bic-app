@@ -137,6 +137,99 @@ function handleSuggestionNavigation(event, cell, suggestionBox) {
     }
 }
 
+// Function to validate a container data
+function validateContainerData(row, kpNumbers, bookingNumbers) {
+    const errors = [];
+    const number = row.querySelector('td:first-child').textContent.trim();
+    
+    // Проверка номера контейнера (только если это не строка "Все")
+    if (number !== 'Все') {
+        const containerPattern = /^[A-Za-z]{4}\d{7}$/;
+        if (!containerPattern.test(number)) {
+            errors.push(`Неверный формат номера контейнера "${number}" (должно быть 4 буквы + 7 цифр)`);
+        }
+    }
+    
+    // Проверка КП
+    const kp = row.querySelector('.kp-cell')?.textContent.trim();
+    if (kp && kpNumbers.length > 0 && !kpNumbers.includes(kp)) {
+        errors.push(`КП "${kp}" не существует в системе`);
+    }
+    
+    // Проверка букинга
+    const booking = row.querySelector('.booking-cell')?.textContent.trim();
+    if (booking && bookingNumbers.length > 0 && !bookingNumbers.includes(booking)) {
+        errors.push(`Букинг "${booking}" не существует в системе`);
+    }
+    
+    // Проверка даты сдачи
+    const deliveryDate = row.querySelector('.delivery-date')?.textContent.trim();
+    if (deliveryDate && !isValidDate(deliveryDate)) {
+        errors.push(`Неверный формат даты сдачи "${deliveryDate}" (должно быть ДД.ММ.ГГГГ)`);
+    }
+    
+    // Проверка даты pickup
+    const pickupDate = row.querySelector('.pickup-date')?.textContent.trim();
+    if (pickupDate && !isValidDate(pickupDate)) {
+        errors.push(`Неверный формат даты pick up "${pickupDate}" (должно быть ДД.ММ.ГГГГ)`);
+    }
+    
+    return errors;
+}
+
+// Функция для проверки KP данных
+function validateKpData(row) {
+    const errors = [];
+    const number = row.querySelector('td:first-child').textContent.trim();
+    
+    if (number !== 'Все') {
+        // Можно добавить дополнительные проверки для КП если нужно
+    }
+    
+    return errors;
+}
+
+// Функция для проверки букинга данных
+function validateBookingData(row) {
+    const errors = [];
+    const number = row.querySelector('td:first-child').textContent.trim();
+    
+    if (number !== 'Все') {
+        // Можно добавить дополнительные проверки для букинга если нужно
+    }
+    
+    return errors;
+}
+
+// Проверка корректности даты в формате DD.MM.YYYY
+function isValidDate(dateStr) {
+    if (!dateStr) return true;
+    
+    const pattern = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+    const matches = dateStr.match(pattern);
+    
+    if (!matches) return false;
+    
+    const day = parseInt(matches[1], 10);
+    const month = parseInt(matches[2], 10) - 1; // Месяцы в JS начинаются с 0
+    const year = parseInt(matches[3], 10);
+    
+    const date = new Date(year, month, day);
+    
+    return date.getDate() === day &&
+           date.getMonth() === month &&
+           date.getFullYear() === year;
+}
+
+// Выделить строку с ошибкой
+function highlightErrorRow(row, hasError) {
+    if (hasError) {
+        row.classList.add('error-row');
+    } else {
+        row.classList.remove('error-row');
+    }
+}
+
 // Function to render edit table for containers, KPs and bookings
 async function renderEditTable(items) {
     const checkbox = document.getElementById('same-data-checkbox');
@@ -253,6 +346,28 @@ async function renderEditTable(items) {
     }
 
     container.innerHTML = html;
+
+    // Добавляем обработчики для снятия выделения ошибки при редактировании
+    const editableCells = container.querySelectorAll('td[contenteditable="true"]');
+    editableCells.forEach(cell => {
+        cell.addEventListener('input', () => {
+            const row = cell.closest('tr');
+            if (row && row.classList.contains('error-row')) {
+                highlightErrorRow(row, false);
+            }
+        });
+    });
+
+    // Также добавляем обработчик для select элементов
+    const selectElements = container.querySelectorAll('select');
+    selectElements.forEach(select => {
+        select.addEventListener('change', () => {
+            const row = select.closest('tr');
+            if (row && row.classList.contains('error-row')) {
+                highlightErrorRow(row, false);
+            }
+        });
+    });
 
     if (currentPage === 'container') {
         const deliveryCells = container.querySelectorAll('.delivery-date');
@@ -490,52 +605,76 @@ async function renderEditTable(items) {
             const rows = container.querySelectorAll('tr');
             const updates = [];
             const errors = [];
-
-            rows.forEach((row, i) => {
-                const number = row.querySelector('td:first-child').textContent.trim();
-                const formData = new URLSearchParams();
-                formData.append('number', number);
-
-                if (currentPage === 'container') {
-                    const kp = row.querySelector('.kp-cell')?.textContent.trim() || null;
-                    const booking = row.querySelector('.booking-cell')?.textContent.trim() || null;
-                    const status = row.querySelector('.status-select')?.value || '';
-                    const location = row.querySelector('.location')?.textContent.trim() || '';
-                    const deliveryDate = row.querySelector('.delivery-date')?.textContent.trim() || null;
-                    const pickupDate = row.querySelector('.pickup-date')?.textContent.trim() || null;
-                    const notes = row.querySelector('.notes-cell')?.textContent.trim() || '';
-
-                    // KP and booking are no longer required
-                    if (kp) formData.append('kp', kp);
-                    if (booking) formData.append('booking', booking);
-                    formData.append('status', status);
-                    formData.append('location', location);
-                    if (deliveryDate) formData.append('delivery_date', deliveryDate);
-                    if (pickupDate) formData.append('pickup_date', pickupDate);
-                    formData.append('notes', notes);
-                } else {
-                    // Validation error handling
-                    const location = row.querySelector('.location')?.textContent.trim() || '';
-                    const notes = row.querySelector('.notes-cell')?.textContent.trim() || '';
-                    if (location && currentPage === 'kp') formData.append('location', location);
-                    formData.append('notes', notes);
-                }
-
-                updates.push({ number, formData });
+            let hasErrors = false;
+            
+            // Сначала сбросим все выделения ошибок
+            rows.forEach(row => {
+                highlightErrorRow(row, false);
             });
 
-            const errorDiv = document.getElementById('error-message') || document.createElement('div');
-            if (!errorDiv.id) {
-                errorDiv.id = 'error-message';
-                document.querySelector('#edit-data-modal .modal-footer').prepend(errorDiv);
-            }
+            // Проверка данных перед отправкой
+            rows.forEach((row, i) => {
+                const number = row.querySelector('td:first-child').textContent.trim();
+                let rowErrors = [];
+                
+                // Вызов соответствующей функции валидации в зависимости от типа страницы
+                if (currentPage === 'container') {
+                    rowErrors = validateContainerData(row, kpNumbers, bookingNumbers);
+                } else if (currentPage === 'kp') {
+                    rowErrors = validateKpData(row);
+                } else {
+                    rowErrors = validateBookingData(row);
+                }
+                
+                if (rowErrors.length > 0) {
+                    hasErrors = true;
+                    highlightErrorRow(row, true);
+                    errors.push(`Ошибки в строке ${i + 1} (${number}): ${rowErrors.join(', ')}`);
+                } else {
+                    // Формирование данных для отправки если нет ошибок
+                    const formData = new URLSearchParams();
+                    formData.append('number', number);
 
-            if (errors.length > 0) {
-                errorDiv.innerHTML = `<p>${errors.join(', ')}</p>`;
-                errorDiv.classList.add('show');
+                    if (currentPage === 'container') {
+                        const kp = row.querySelector('.kp-cell')?.textContent.trim() || null;
+                        const booking = row.querySelector('.booking-cell')?.textContent.trim() || null;
+                        const status = row.querySelector('.status-select')?.value || '';
+                        const location = row.querySelector('.location')?.textContent.trim() || '';
+                        const deliveryDate = row.querySelector('.delivery-date')?.textContent.trim() || null;
+                        const pickupDate = row.querySelector('.pickup-date')?.textContent.trim() || null;
+                        const notes = row.querySelector('.notes-cell')?.textContent.trim() || '';
+
+                        if (kp) formData.append('kp', kp);
+                        if (booking) formData.append('booking', booking);
+                        formData.append('status', status);
+                        formData.append('location', location);
+                        if (deliveryDate) formData.append('delivery_date', deliveryDate);
+                        if (pickupDate) formData.append('pickup_date', pickupDate);
+                        formData.append('notes', notes);
+                    } else {
+                        const location = row.querySelector('.location')?.textContent.trim() || '';
+                        const notes = row.querySelector('.notes-cell')?.textContent.trim() || '';
+                        if (location && currentPage === 'kp') formData.append('location', location);
+                        formData.append('notes', notes);
+                    }
+
+                    updates.push({ number, formData });
+                }
+            });
+
+            // Если есть ошибки - показываем их и прерываем процесс
+            if (hasErrors) {
+                showNotification({
+                    success: 0,
+                    failed: rows.length,
+                    errors: errors,
+                    status: 'error',
+                    action: 'validation'
+                });
                 return;
             }
 
+            // Если ошибок нет - продолжаем отправку данных
             let updatedCount = 0;
             let failedCount = 0;
             const serverErrors = [];
@@ -554,6 +693,14 @@ async function renderEditTable(items) {
                     else {
                         failedCount++;
                         serverErrors.push(result.errors?.join(', ') || 'Ошибка сервера');
+                        
+                        // Выделить строки с ошибками от сервера
+                        rows.forEach(row => {
+                            const rowNumber = row.querySelector('td:first-child').textContent.trim();
+                            if (rowNumber === update.number) {
+                                highlightErrorRow(row, true);
+                            }
+                        });
                     }
                 } catch (error) {
                     failedCount++;
@@ -561,12 +708,14 @@ async function renderEditTable(items) {
                 }
             }
 
-            errorDiv.innerHTML = '';
-            errorDiv.classList.remove('show');
-
             if (failedCount > 0) {
-                errorDiv.innerHTML = `<p>${serverErrors.join(', ')}</p>`;
-                errorDiv.classList.add('show');
+                showNotification({
+                    success: updatedCount,
+                    failed: failedCount,
+                    errors: serverErrors,
+                    status: 'error',
+                    action: 'edit'
+                });
             } else if (updatedCount > 0) {
                 document.getElementById('edit-data-modal').style.display = 'none';
                 showNotification({
@@ -611,36 +760,127 @@ function attachModalListeners() {
         addCloseElements.forEach(el => el.onclick = () => addModal.style.display = 'none');
         if (addSaveButton) {
             addSaveButton.onclick = async () => {
-                const textareaId = currentPage === 'container' ? 'container-numbers' :
-                    currentPage === 'kp' ? 'kp-numbers' : 'booking-numbers';
-                const numbers = document.getElementById(textareaId).value;
-                const endpoint = currentPage === 'container' ? '/add_container' :
-                    currentPage === 'kp' ? '/add_kp' : '/add_booking';
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ [`${currentPage}_numbers`]: numbers })
-                });
-                const result = await response.json();
-                addModal.style.display = 'none';
-                showNotification(result);
-                if (result.success > 0) updateTable(getCurrentFilters());
+                if (currentPage === 'container') {
+                    const textareaId = 'container-numbers';
+                    const numbers = document.getElementById(textareaId).value;
+                    const endpoint = '/add_container';
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ [`${currentPage}_numbers`]: numbers })
+                    });
+                    const result = await response.json();
+                    addModal.style.display = 'none';
+                    showNotification(result);
+                    if (result.success > 0) updateTable(getCurrentFilters());
+                } else if (currentPage === 'kp') {
+                    const textareaId = 'kp-numbers';
+                    const numbers = document.getElementById(textareaId).value;
+                    const endpoint = '/add_kp';
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ [`${currentPage}_numbers`]: numbers })
+                    });
+                    const result = await response.json();
+                    addModal.style.display = 'none';
+                    showNotification(result);
+                    if (result.success > 0) updateTable(getCurrentFilters());
+                } else { // buking page (now only adds an internal number)
+                    const internalNumber = document.getElementById('internal-number')?.value.trim() || '';
+                    const podDirection = document.getElementById('pod-direction')?.value.trim() || '';
+                    const quantity = document.getElementById('quantity')?.value.trim() || '';
+                    const typeSize = document.getElementById('type-size')?.value || '';
+                    
+                    // Checking required fields
+                    if (!internalNumber || !podDirection) {
+                        showNotification({
+                            status: 'error',
+                            success: 0,
+                            failed: 1,
+                            errors: ['Заполните все обязательные поля']
+                        });
+                        return;
+                    }
+                    
+                    const endpoint = '/add_internal_number';
+                    try {
+                        const response = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: new URLSearchParams({ 
+                                'internal_number': internalNumber,
+                                'pod_direction': podDirection,
+                                'quantity': quantity,
+                                'type_size': typeSize
+                            })
+                        });
+                        
+                        // Обработка результата
+                        try {
+                            const result = await response.json();
+                            addModal.style.display = 'none';
+                            showNotification(result);
+                            
+                            // Вместо полной перезагрузки страницы используем асинхронное обновление таблицы
+                            if (result.success > 0) {
+                                updateTable(getCurrentFilters());
+                            }
+                        } catch (e) {
+                            // Если сервер вернул не JSON (например, редирект)
+                            addModal.style.display = 'none';
+                            showNotification({
+                                status: 'error',
+                                success: 0,
+                                failed: 1,
+                                errors: ['Ошибка при обработке ответа сервера']
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Ошибка при отправке данных:', error);
+                        showNotification({
+                            status: 'error',
+                            success: 0,
+                            failed: 1,
+                            errors: ['Ошибка при отправке данных на сервер']
+                        });
+                        addModal.style.display = 'none';
+                    }
+                }
             };
         }
     }
-
+    
     if (deleteModal) {
         deleteCloseElements.forEach(el => el.onclick = () => deleteModal.style.display = 'none');
         if (deleteSaveButton) {
             deleteSaveButton.onclick = async () => {
-                const textareaId = `delete-${currentPage}-numbers`;
+                let textareaId, endpoint, paramName;
+                
+                if (currentPage === 'container') {
+                    textareaId = 'delete-container-numbers';
+                    endpoint = '/delete_containers';
+                    paramName = 'container_numbers';
+                } else if (currentPage === 'kp') {
+                    textareaId = 'delete-kp-numbers';
+                    endpoint = '/delete_kps';
+                    paramName = 'kp_numbers';
+                } else if (currentPage === 'buking') {
+                    textareaId = 'delete-internal-numbers';
+                    endpoint = '/delete_internal_number';
+                    paramName = 'internal_numbers';
+                } else {
+                    textareaId = `delete-${currentPage}-numbers`;
+                    endpoint = currentPage === 'container' ? '/delete_containers' :
+                        currentPage === 'kp' ? '/delete_kps' : '/delete_bookings';
+                    paramName = `${currentPage}_numbers`;
+                }
+                
                 const numbers = document.getElementById(textareaId).value;
-                const endpoint = currentPage === 'container' ? '/delete_containers' :
-                    currentPage === 'kp' ? '/delete_kps' : '/delete_bookings';
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ [`${currentPage}_numbers`]: numbers })
+                    body: new URLSearchParams({ [paramName]: numbers })
                 });
                 const result = await response.json();
                 deleteModal.style.display = 'none';
@@ -658,16 +898,57 @@ function attachModalListeners() {
                 const numbers = document.getElementById(textareaId).value;
                 const endpoint = currentPage === 'container' ? '/get_container_data' :
                     currentPage === 'kp' ? '/get_kp_data' : '/get_booking_data';
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ [`${currentPage}_numbers`]: numbers })
-                });
-                const result = await response.json();
-                editItems = result[currentPage === 'container' ? 'containers' : currentPage === 'kp' ? 'kps' : 'bookings'];
-                editNumbersModal.style.display = 'none';
-                editDataModal.style.display = 'block';
-                await renderEditTable(editItems);
+                
+                // Отображаем индикатор загрузки
+                const loadingIndicator = document.createElement('div');
+                loadingIndicator.className = 'loading-indicator';
+                loadingIndicator.textContent = 'Загрузка данных...';
+                document.body.appendChild(loadingIndicator);
+                
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ [`${currentPage}_numbers`]: numbers })
+                    });
+                    
+                    const result = await response.json();
+                    // Для отладки: вывести полученные данные в консоль
+                    console.log('Полученные данные:', result);
+                    
+                    // Проверяем есть ли контейнеры/КП/букинги в ответе
+                    const itemsKey = currentPage === 'container' ? 'containers' : 
+                                     currentPage === 'kp' ? 'kps' : 'bookings';
+                    
+                    if (!result[itemsKey] || result[itemsKey].length === 0) {
+                        // Если данных нет, показываем уведомление
+                        showNotification({
+                            success: 0,
+                            failed: 1,
+                            errors: ['Не найдены данные для указанных номеров. Проверьте правильность ввода.'],
+                            status: 'error',
+                            action: 'fetch'
+                        });
+                        document.body.removeChild(loadingIndicator);
+                        return;
+                    }
+                    
+                    editItems = result[itemsKey];
+                    editNumbersModal.style.display = 'none';
+                    editDataModal.style.display = 'block';
+                    await renderEditTable(editItems);
+                } catch (error) {
+                    console.error('Ошибка получения данных:', error);
+                    showNotification({
+                        success: 0,
+                        failed: 1,
+                        errors: ['Ошибка при загрузке данных: ' + error.message],
+                        status: 'error',
+                        action: 'fetch'
+                    });
+                } finally {
+                    document.body.removeChild(loadingIndicator);
+                }
             };
         }
     }
@@ -675,12 +956,6 @@ function attachModalListeners() {
     if (editDataModal) {
         editDataCloseElements.forEach(el => el.onclick = () => {
             editDataModal.style.display = 'none';
-            // Hide error notification when closing the edit modal
-            const errorDiv = document.getElementById('error-message');
-            if (errorDiv) {
-                errorDiv.innerHTML = '';
-                errorDiv.classList.remove('show');
-            }
         });
         const checkbox = document.getElementById('same-data-checkbox');
         if (checkbox) checkbox.onchange = () => renderEditTable(editItems);
@@ -692,12 +967,6 @@ function attachModalListeners() {
         else if (event.target === editNumbersModal) editNumbersModal.style.display = 'none';
         else if (event.target === editDataModal) {
             editDataModal.style.display = 'none';
-            // Hide error notification on any edit modal closing
-            const errorDiv = document.getElementById('error-message');
-            if (errorDiv) {
-                errorDiv.innerHTML = '';
-                errorDiv.classList.remove('show');
-            }
         }
     };
 }

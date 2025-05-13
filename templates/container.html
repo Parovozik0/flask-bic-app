@@ -27,7 +27,6 @@
                         <option value="В России">В России</option>
                     </select>
                     <input type="text" id="filter-location" placeholder="Локация">
-                    <input type="text" id="filter-notes" placeholder="Заметки">
                     <input type="date" id="filter-delivery-date" placeholder="Фильтр по дате сдачи">
                     <input type="date" id="filter-pickup-date" placeholder="Фильтр по дате pick up">
                 </div>
@@ -149,9 +148,14 @@
                 <button class="close">×</button>
             </div>
             <div class="modal-body">
+                <!-- Улучшенный чекбокс "Применить для всех" -->
                 <div class="checkbox-container">
-                    <input type="checkbox" id="same-data-checkbox" class="custom-checkbox" style="width: 25px; margin-top: 15px;">
-                    <label for="same-data-checkbox">Применить одинаковые данные ко всем контейнерам</label>
+                    <input type="checkbox" id="same-data-checkbox" class="custom-checkbox">
+                    <label for="same-data-checkbox">
+                        <i class="fas fa-sync-alt"></i>
+                        Применить одинаковые данные ко всем контейнерам
+                        <span class="info-icon" title="При отметке этой опции введенные данные будут автоматически применены ко всем контейнерам в таблице">ⓘ</span>
+                    </label>
                 </div>
                 <div class="edit-table-wrapper">
                     <table class="edit-table">

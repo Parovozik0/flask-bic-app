@@ -35,8 +35,21 @@
         {% endblock %}
     </div>
     <img src="{{ url_for('static', filename='pics/question_mark.png') }}" width="60" height="60" class="question">
+
+    {% block additional_elements %}
+    <!-- Popup elements for notes -->
+    <div id="notes-popup" class="notes-popup">
+        <textarea id="notes-popup-text"></textarea>
+    </div>
+    <div id="edit-notes-popup" class="notes-popup edit-notes-popup">
+        <textarea id="edit-notes-popup-text"></textarea>
+    </div>
+    {% endblock %}
+
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <!-- Include all JavaScript files in the correct dependency order -->
+    <script src="{{ url_for('static', filename='js/internal_numbers.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="{{ url_for('static', filename='js/core.js') }}"></script>
     <script src="{{ url_for('static', filename='js/navigation.js') }}"></script>
     <script src="{{ url_for('static', filename='js/table.js') }}"></script>

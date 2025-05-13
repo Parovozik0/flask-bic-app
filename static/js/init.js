@@ -28,6 +28,13 @@ function afterPageLoad() {
         attachFilterListeners();
         attachTableCellListeners();
         setupInventoryModal();
+        
+        // Инициализация обработчиков для внутренних номеров на странице букинг
+        if (currentPage === 'buking' && window.internalNumbersModule) {
+            console.log('Инициализируем модуль внутренних номеров');
+            window.internalNumbersModule.init();
+        }
+        
         console.log('afterPageLoad completed successfully');
     } catch (error) {
         console.error('Error in afterPageLoad:', error);

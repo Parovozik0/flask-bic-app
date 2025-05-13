@@ -3,7 +3,7 @@ async function updateTable(filters = {}) {
     const endpoints = {
         'container': '/get_containers',
         'kp': '/get_kps',
-        'buking': '/get_bookings'
+        'buking': '/get_internal_numbers'  // Новый эндпоинт для получения внутренних номеров в JSON
     };
     const endpoint = endpoints[currentPage];
     const params = currentPage === 'container' ? `?option=${getContainerOption()}` : '';
@@ -20,128 +20,209 @@ async function updateTable(filters = {}) {
     }
 
     try {
-        const response = await fetch(endpoint + params);
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        // Отображаем индикатор загрузки
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.textContent = 'Обновление данных...';
+        document.body.appendChild(loadingIndicator);
 
-        let filteredItems = currentPage === 'container' ? data.containers :
-            currentPage === 'kp' ? data.kps : data.bookings;
-
-        if (Object.keys(filters).length > 0) {
-            filteredItems = filteredItems.filter(item => {
-                const notes = cleanValue(item.notes).toLowerCase();
-                const kp = currentPage === 'container' ? cleanValue(item.KP).toLowerCase() : '';
-                const booking = currentPage === 'container' ? cleanValue(item.booking).toLowerCase() : '';
-                const deliveryDate = currentPage === 'container' ? formatDateToISO(item.delivery_date) : '';
-                const pickupDate = currentPage === 'container' ? formatDateToISO(item.pickup_date) : '';
-                const number = cleanValue(item.number).toLowerCase();
-                const location = cleanValue(item.location).toLowerCase();
-                const status = currentPage === 'container' ? cleanValue(item.status).toLowerCase() : '';
-
-                // Support filtering by multiple numbers separated by space
-                let numberMatch = true;
-                if (filters.number) {
-                    const numbersArray = filters.number
-                        .split(/\s+/)
-                        .map(n => n.trim().toLowerCase())
-                        .filter(n => n.length > 0);
-
-                    if (numbersArray.length > 1) {
-                        // If multiple numbers are entered, look for exact match with any of them
-                        numberMatch = numbersArray.includes(number);
-                    } else if (numbersArray.length === 1) {
-                        // If only one number or part is entered - search by substring
-                        numberMatch = number.includes(numbersArray[0]);
-                    }
-                }
-
-                let statusMatch = true;
-                if (currentPage === 'container' && filters.status && filters.status.trim() !== '') {
-                    const statusClean = status.replace(/[^\w\sА-Яа-яЁё-]/g, '').trim().toLowerCase();
-                    const filterStatusClean = filters.status.trim().toLowerCase();
-                    statusMatch = statusClean === filterStatusClean;
-                }
-
-                return (
-                    numberMatch &&
-                    statusMatch &&
-                    (currentPage !== 'container' || !filters.kpNumber || kp.includes(filters.kpNumber.toLowerCase())) &&
-                    (currentPage !== 'container' || !filters.bookingNumber || booking.includes(filters.bookingNumber.toLowerCase())) &&
-                    (!filters.location || location.includes(filters.location.toLowerCase())) &&
-                    (!filters.notes || notes.includes(filters.notes.toLowerCase())) &&
-                    (currentPage !== 'container' || !filters.deliveryDate || deliveryDate === filters.deliveryDate) &&
-                    (currentPage !== 'container' || !filters.pickupDate || pickupDate === filters.pickupDate)
-                );
-            });
-        }
-
-        const tbody = document.querySelector('.table-container tbody');
-        tbody.innerHTML = filteredItems.map(item => {
-            if (currentPage === 'container') {
-                // Define class for status
-                let statusClass = '';
-                let statusText = cleanValue(item.status);
-                switch (statusText) {
-                    case 'Направлен в Китай':
-                        statusClass = 'status-directed-to-china';
-                        statusText += ' &nbsp;🇷🇺➡️🇨🇳';
-                        break;
-                    case 'В Китае':
-                        statusClass = 'status-in-china';
-                        statusText += ' &nbsp;🇨🇳';
-                        break;
-                    case 'Направлен в Россию':
-                        statusClass = 'status-directed-to-russia';
-                        statusText += ' &nbsp;🇨🇳➡️🇷🇺';
-                        break;
-                    case 'В России':
-                        statusClass = 'status-in-russia';
-                        statusText += ' &nbsp;🇷🇺';
-                        break;
-                    default:
-                        statusClass = '';
-                }
-
-                return `
-                    <tr data-number="${cleanValue(item.number)}">
-                        <td style="width: 260px;">${cleanValue(item.number)}</td>
-                        <td>${cleanValue(item.KP)}</td>
-                        <td>${cleanValue(item.booking)}</td>
-                        <td class="${statusClass}" style="width: 260px; font-weight: 700; text-align: center; background: #0D1B2A; color: #fff;">
-                            ${statusText}
-                        </td>
-                        <td>${cleanValue(item.location)}</td>
-                        <td>${formatDateToISO(item.delivery_date)}</td>
-                        <td>${formatDateToISO(item.pickup_date)}</td>
-                        <td>${cleanValue(item.notes)}</td>
-                    </tr>
-                `;
-            } else if (currentPage === 'kp') {
-                return `
-                    <tr data-number="${cleanValue(item.number)}">
-                        <td style="width: 260px;">${cleanValue(item.number)}</td>
-                        <td>${cleanValue(item.location)}</td>
-                        <td>${cleanValue(item.notes)}</td>
-                    </tr>
-                `;
-            } else {
-                return `
-                    <tr data-number="${cleanValue(item.number)}">
-                        <td style="width: 260px;">${cleanValue(item.number)}</td>
-                        <td>${cleanValue(item.notes)}</td>
-                    </tr>
-                `;
+        try {
+            // Отправляем запрос на сервер с учетом фильтров
+            let url = endpoint + params;
+            
+            // Для страницы buking, добавим параметры фильтрации в URL если они есть
+            if (currentPage === 'buking' && Object.keys(filters).length > 0) {
+                const filterParams = new URLSearchParams();
+                
+                if (filters.number) filterParams.append('internal_number', filters.number);
+                if (filters.podDirection) filterParams.append('pod_direction', filters.podDirection);
+                if (filters.quantity) filterParams.append('quantity', filters.quantity);
+                if (filters.typeSize) filterParams.append('type_size', filters.typeSize);
+                if (filters.cargo) filterParams.append('cargo', filters.cargo);
+                
+                url += '?' + filterParams.toString();
             }
-        }).join('');
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.error) throw new Error(data.error);
 
-        const header = document.querySelector('.header h1');
-        header.textContent = `${currentPage === 'kp' ? 'КП' : currentPage === 'buking' ? 'Букинги' : 'Контейнеры'}: ${filteredItems.length}`;
+            let filteredItems;
+            
+            if (currentPage === 'buking') {
+                // Для страницы букинга, данные приходят как internal_numbers
+                filteredItems = data.internal_numbers || [];
+                
+                // Обновляем счетчик количества внутренних номеров
+                const header = document.querySelector('.header h1');
+                if (header) {
+                    header.textContent = `Внутренние номера: ${filteredItems.length}`;
+                }
+                
+                // Обновляем содержимое таблицы
+                const tbody = document.querySelector('.table-container tbody');
+                if (tbody) {
+                    tbody.innerHTML = filteredItems.map(item => `
+                        <tr class="internal-number-row" data-internal-number="${item.internal_number}" ondblclick="handleRowClick('${item.internal_number}')">
+                            <td>${item.internal_number}</td>
+                            <td>${item.quantity}</td>
+                            <td>${item.type_size}</td>
+                            <td>${item.pod_direction}</td>
+                            <td>${item.cargo || ''}</td>
+                            <td>${item.booking_count}</td>
+                        </tr>
+                    `).join('');
+                }
+                
+                // Переинициализируем обработчики событий для строк
+                setupInternalNumberRows();
+            } else {
+                // Для остальных страниц оставляем прежнюю логику
+                filteredItems = currentPage === 'container' ? data.containers :
+                    currentPage === 'kp' ? data.kps : data.bookings;
+                
+                if (Object.keys(filters).length > 0) {
+                    filteredItems = filteredItems.filter(item => {
+                        // Преобразуем значения в строки и приводим к нижнему регистру для поиска
+                        const convertToSearchString = (value) => {
+                            // Сначала обрабатываем значение через cleanValue
+                            let cleaned = cleanValue(value);
+                            // Затем преобразуем в строку, если это еще не строка
+                            if (typeof cleaned !== 'string') {
+                                cleaned = String(cleaned);
+                            }
+                            // И приводим к нижнему регистру
+                            return cleaned.toLowerCase();
+                        };
+                        
+                        const notes = convertToSearchString(item.notes);
+                        const kp = currentPage === 'container' ? convertToSearchString(item.KP) : '';
+                        const booking = currentPage === 'container' ? convertToSearchString(item.booking) : '';
+                        const deliveryDate = currentPage === 'container' ? formatDateToISO(item.delivery_date) : '';
+                        const pickupDate = currentPage === 'container' ? formatDateToISO(item.pickup_date) : '';
+                        const number = convertToSearchString(item.number);
+                        const location = convertToSearchString(item.location);
+                        const status = currentPage === 'container' ? convertToSearchString(item.status) : '';
 
-        attachTableRowListeners();
-        attachNotesPopupListeners();
-        document.dispatchEvent(new Event('tableUpdated'));
+                        // Support filtering by multiple numbers separated by space
+                        let numberMatch = true;
+                        if (filters.number) {
+                            const numbersArray = filters.number
+                                .split(/\s+/)
+                                .map(n => n.trim().toLowerCase())
+                                .filter(n => n.length > 0);
+
+                            if (numbersArray.length > 1) {
+                                // If multiple numbers are entered, look for exact match with any of them
+                                numberMatch = numbersArray.includes(number);
+                            } else if (numbersArray.length === 1) {
+                                // If only one number or part is entered - search by substring
+                                numberMatch = number.includes(numbersArray[0]);
+                            }
+                        }
+
+                        let statusMatch = true;
+                        if (currentPage === 'container' && filters.status && filters.status.trim() !== '') {
+                            const statusClean = status.replace(/[^\w\sА-Яа-яЁё-]/g, '').trim();
+                            const filterStatusClean = filters.status.trim().toLowerCase();
+                            statusMatch = statusClean === filterStatusClean;
+                        }
+
+                        return (
+                            numberMatch &&
+                            statusMatch &&
+                            (currentPage !== 'container' || !filters.kpNumber || kp.includes(filters.kpNumber.toLowerCase())) &&
+                            (currentPage !== 'container' || !filters.bookingNumber || booking.includes(filters.bookingNumber.toLowerCase())) &&
+                            (!filters.location || location.includes(filters.location.toLowerCase())) &&
+                            (!filters.notes || notes.includes(filters.notes.toLowerCase())) &&
+                            (currentPage !== 'container' || !filters.deliveryDate || deliveryDate === filters.deliveryDate) &&
+                            (currentPage !== 'container' || !filters.pickupDate || pickupDate === filters.pickupDate)
+                        );
+                    });
+                }
+                
+                const tbody = document.querySelector('.table-container tbody');
+                tbody.innerHTML = filteredItems.map(item => {
+                    if (currentPage === 'container') {
+                        // Define class for status
+                        let statusClass = '';
+                        let statusText = cleanValue(item.status);
+                        switch (statusText) {
+                            case 'Направлен в Китай':
+                                statusClass = 'status-directed-to-china';
+                                statusText += ' &nbsp;🇷🇺➡️🇨🇳';
+                                break;
+                            case 'В Китае':
+                                statusClass = 'status-in-china';
+                                statusText += ' &nbsp;🇨🇳';
+                                break;
+                            case 'Направлен в Россию':
+                                statusClass = 'status-directed-to-russia';
+                                statusText += ' &nbsp;🇨🇳➡️🇷🇺';
+                                break;
+                            case 'В России':
+                                statusClass = 'status-in-russia';
+                                statusText += ' &nbsp;🇷🇺';
+                                break;
+                            default:
+                                statusClass = '';
+                        }
+
+                        return `
+                            <tr data-number="${cleanValue(item.number)}">
+                                <td style="width: 260px;">${cleanValue(item.number)}</td>
+                                <td>${cleanValue(item.KP)}</td>
+                                <td>${cleanValue(item.booking)}</td>
+                                <td class="${statusClass}" style="width: 260px; font-weight: 700; text-align: center; background: #0D1B2A; color: #fff;">
+                                    ${statusText}
+                                </td>
+                                <td>${cleanValue(item.location)}</td>
+                                <td>${formatDateToISO(item.delivery_date)}</td>
+                                <td>${formatDateToISO(item.pickup_date)}</td>
+                                <td>${cleanValue(item.notes)}</td>
+                            </tr>
+                        `;
+                    } else if (currentPage === 'kp') {
+                        return `
+                            <tr data-number="${cleanValue(item.number)}">
+                                <td style="width: 260px;">${cleanValue(item.number)}</td>
+                                <td>${cleanValue(item.location)}</td>
+                                <td>${cleanValue(item.notes)}</td>
+                            </tr>
+                        `;
+                    } else {
+                        return `
+                            <tr data-number="${cleanValue(item.number)}">
+                                <td style="width: 260px;">${cleanValue(item.number)}</td>
+                                <td>${cleanValue(item.notes)}</td>
+                            </tr>
+                        `;
+                    }
+                }).join('');
+                
+                const header = document.querySelector('.header h1');
+                header.textContent = `${currentPage === 'kp' ? 'КП' : currentPage === 'buking' ? 'Букинги' : 'Контейнеры'}: ${filteredItems.length}`;
+            }
+            
+            attachTableRowListeners();
+            attachNotesPopupListeners();
+            document.dispatchEvent(new Event('tableUpdated'));
+        } catch (error) {
+            console.error('Error updating table:', error);
+            // В случае ошибки не перезагружаем страницу, а показываем уведомление
+            showNotification({
+                status: 'error',
+                success: 0,
+                failed: 1,
+                errors: [`Ошибка при обновлении данных: ${error.message}`]
+            });
+        } finally {
+            // Удаляем индикатор загрузки
+            document.body.removeChild(loadingIndicator);
+        }
     } catch (error) {
-        console.error('Error updating table:', error);
+        console.error('Error in updateTable:', error);
     }
 }
 
@@ -179,6 +260,13 @@ function handleSelectChange(event) {
 function attachTableRowListeners() {
     const rows = document.querySelectorAll('.table-container tbody tr');
     rows.forEach(row => {
+        // Проверяем, не является ли строка строкой внутреннего номера на странице букинга
+        if (currentPage === 'buking' && row.classList.contains('internal-number-row')) {
+            // Пропускаем обработку для строк внутренних номеров на странице букинга
+            // так как для них есть отдельный обработчик
+            return;
+        }
+        
         row.onclick = () => {
             rows.forEach(r => r.classList.remove('selected'));
             row.classList.add('selected');
@@ -204,7 +292,26 @@ function attachNotesPopupListeners() {
         repositionPopup = null;
     }
 
+    // Create a global document click handler for popup
+    const documentClickHandler = function(e) {
+        // Only hide the popup if it's visible and the click is outside the popup and the active cell
+        if (popup.style.display === 'block' && 
+            !popup.contains(e.target) && 
+            (!lastCell || !lastCell.contains(e.target))) {
+            hidePopup();
+        }
+    };
+
+    // Remove existing handler if any and add new one
+    document.removeEventListener('click', documentClickHandler);
+    document.addEventListener('click', documentClickHandler);
+
     notesCells.forEach(cell => {
+        // Skip if the cell is in the quantity column (2nd column) in the buking page
+        if (currentPage === 'buking' && cell.cellIndex === 1) {
+            return;
+        }
+        
         cell.addEventListener('click', (e) => {
             const rect = cell.getBoundingClientRect();
             lastCell = cell;
@@ -219,14 +326,7 @@ function attachNotesPopupListeners() {
             };
             repositionPopup();
             popup.style.display = 'block';
-            e.stopPropagation();
-
-            document.addEventListener('click', function handler(e) {
-                if (!popup.contains(e.target) && !cell.contains(e.target)) {
-                    hidePopup();
-                    document.removeEventListener('click', handler);
-                }
-            }, { once: true });
+            e.stopPropagation(); // Prevent the global click handler from immediately closing the popup
         });
     });
 
@@ -328,3 +428,264 @@ function getCurrentFilters() {
         status: inputs.status?.value || ''
     };
 }
+
+// Добавляем обработчик для строк с внутренними номерами (на странице букингов)
+function setupInternalNumberRows() {
+    if (currentPage !== 'buking') return;
+    
+    const internalDetailModal = document.getElementById('internal-number-details-modal');
+    if (!internalDetailModal) {
+        console.log('Модальное окно internal-number-details-modal не найдено, пропускаем обработку');
+        return;
+    }
+    
+    const closeButtons = internalDetailModal.querySelectorAll('.close, .cancel');
+    closeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            internalDetailModal.style.display = 'none';
+        });
+    });
+    
+    // Добавляем обработчики к строкам с внутренними номерами
+    const internalRows = document.querySelectorAll('.internal-number-row');
+    internalRows.forEach(row => {
+        row.addEventListener('click', async function() {
+            const internalNumber = this.dataset.internalNumber;
+            if (!internalNumber) return;
+            
+            try {
+                console.log('Получаем информацию о букингах для внутреннего номера:', internalNumber);
+                
+                // Используем функцию showInternalNumberModal из internal_numbers.js, если она доступна
+                if (typeof window.showInternalNumberModal === 'function') {
+                    window.showInternalNumberModal(internalNumber);
+                    return; // Выходим, так как дальнейшая обработка будет в showInternalNumberModal
+                }
+                
+                // Запрос букингов для этого внутреннего номера
+                const response = await fetch('/get_bookings_by_internal_number', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ 'internal_number': internalNumber })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Проверка наличия элемента перед обновлением его содержимого
+                    const selectedInternalNumberElement = document.getElementById('selected-internal-number');
+                    if (selectedInternalNumberElement) {
+                        selectedInternalNumberElement.textContent = internalNumber;
+                    } else {
+                        console.warn('Элемент selected-internal-number не найден');
+                    }
+                    
+                    // Проверка наличия таблицы для букингов
+                    const bookingsTable = document.getElementById('internal-number-bookings');
+                    if (!bookingsTable) {
+                        console.warn('Элемент internal-number-bookings не найден');
+                        return;
+                    }
+                    
+                    bookingsTable.innerHTML = '';
+                    
+                    if (data.bookings && data.bookings.length > 0) {
+                        data.bookings.forEach(booking => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${booking.booking}</td>
+                                <td>${booking.line}</td>
+                                <td>${booking.quantity}</td>
+                                <td>${booking.vessel}</td>
+                            `;
+                            bookingsTable.appendChild(row);
+                        });
+                        
+                        // Если есть хотя бы один букинг, заполняем поля в модальном окне добавления букинга
+                        const sampleBooking = data.bookings[0];
+                        const bookingLineInput = document.getElementById('booking-line');
+                        const bookingQuantityInput = document.getElementById('booking-quantity');
+                        const bookingVesselInput = document.getElementById('booking-vessel');
+                        
+                        if (bookingLineInput) bookingLineInput.value = sampleBooking.line || '';
+                        if (bookingQuantityInput) bookingQuantityInput.value = sampleBooking.quantity || '';
+                        if (bookingVesselInput) bookingVesselInput.value = sampleBooking.vessel || '';
+                    } else {
+                        bookingsTable.innerHTML = '<tr><td colspan="4" style="text-align: center;">Нет связанных букингов</td></tr>';
+                    }
+                    
+                    // Добавляем обработчик для кнопки добавления букингов
+                    setupAddBookingButton(internalNumber, data.bookings[0]);
+                    
+                    // Показываем модальное окно
+                    internalDetailModal.style.display = 'block';
+                } else {
+                    showNotification({
+                        status: 'error',
+                        success: 0,
+                        failed: 1,
+                        errors: [data.error || 'Ошибка получения данных']
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching bookings:', error);
+                showNotification({
+                    status: 'error',
+                    success: 0,
+                    failed: 1,
+                    errors: ['Ошибка загрузки списка букингов']
+                });
+            }
+        });
+        
+        // Добавляем визуальную подсказку, что на строку можно кликнуть
+        row.style.cursor = 'pointer';
+    });
+}
+
+// Функция для настройки модального окна добавления букингов
+function setupAddBookingButton(internalNumber, sampleBooking) {
+    const addBookingBtn = document.querySelector('.add-booking-btn');
+    const addBookingModal = document.getElementById('add-booking-modal');
+    
+    if (!addBookingBtn || !addBookingModal) return;
+    
+    // Настраиваем кнопку открытия модального окна
+    addBookingBtn.onclick = function() {
+        document.getElementById('add-to-internal-number').textContent = internalNumber;
+        document.getElementById('new-booking-numbers').value = '';
+        
+        // Предзаполняем поля данными из образца, если они доступны
+        if (sampleBooking) {
+            document.getElementById('booking-line').value = sampleBooking.line || '';
+            document.getElementById('booking-quantity').value = sampleBooking.quantity || '';
+            document.getElementById('booking-vessel').value = sampleBooking.vessel || '';
+        }
+        
+        addBookingModal.style.display = 'block';
+    };
+    
+    // Настраиваем кнопки закрытия
+    const closeButtons = addBookingModal.querySelectorAll('.close, .cancel');
+    closeButtons.forEach(btn => {
+        btn.onclick = function() {
+            addBookingModal.style.display = 'none';
+        };
+    });
+    
+    // Настраиваем кнопку сохранения
+    const saveButton = addBookingModal.querySelector('.save');
+    if (saveButton) {
+        saveButton.onclick = async function() {
+            const bookingNumbers = document.getElementById('new-booking-numbers').value;
+            const line = document.getElementById('booking-line').value;
+            const quantity = document.getElementById('booking-quantity').value;
+            const vessel = document.getElementById('booking-vessel').value;
+            
+            // Проверяем заполнение полей
+            if (!bookingNumbers || !line || !quantity || !vessel) {
+                showNotification({
+                    status: 'error',
+                    success: 0,
+                    failed: 1,
+                    errors: ['Заполните все обязательные поля']
+                });
+                return;
+            }
+            
+            try {
+                const response = await fetch('/add_buking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        'booking_numbers': bookingNumbers,
+                        'internal_number': internalNumber,
+                        'line': line,
+                        'quantity': quantity,
+                        'vessel': vessel
+                    })
+                });
+                
+                const result = await response.json();
+                addBookingModal.style.display = 'none';
+                
+                // Показываем уведомление о результате
+                showNotification(result);
+                
+                if (result.success > 0) {
+                    // Перезагружаем список букингов
+                    const newResponse = await fetch('/get_bookings_by_internal_number', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ 'internal_number': internalNumber })
+                    });
+                    
+                    const newData = await newResponse.json();
+                    
+                    if (newData.success) {
+                        const bookingsTable = document.getElementById('internal-number-bookings');
+                        bookingsTable.innerHTML = '';
+                        
+                        if (newData.bookings && newData.bookings.length > 0) {
+                            newData.bookings.forEach(booking => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${booking.booking}</td>
+                                    <td>${booking.line}</td>
+                                    <td>${booking.quantity}</td>
+                                    <td>${booking.vessel}</td>
+                                `;
+                                bookingsTable.appendChild(row);
+                            });
+                        } else {
+                            bookingsTable.innerHTML = '<tr><td colspan="4" style="text-align: center;">Нет связанных букингов</td></tr>';
+                        }
+                    }
+                    
+                    // Обновляем общую таблицу внутренних номеров
+                    updateTable(getCurrentFilters());
+                }
+            } catch (error) {
+                console.error('Error adding bookings:', error);
+                showNotification({
+                    status: 'error',
+                    success: 0,
+                    failed: 1,
+                    errors: ['Ошибка при добавлении букингов']
+                });
+            }
+        };
+    }
+    
+    // Закрытие по клику за пределами модального окна
+    window.onclick = function(event) {
+        if (event.target === addBookingModal) {
+            addBookingModal.style.display = 'none';
+        }
+    };
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    // Вызываем функцию при загрузке страницы
+    setupInternalNumberRows();
+    
+    // Обработка кликов на строки с внутренними номерами
+    const rows = document.querySelectorAll('.internal-number-row');
+    rows.forEach(row => {
+        row.addEventListener('click', function() {
+            const internalNumber = this.getAttribute('data-internal-number');
+            if (internalNumber) {
+                console.log('Row clicked. Internal number:', internalNumber);
+                // Вызываем нашу функцию для отображения пустого модального окна
+                if (typeof window.showInternalNumberModal === 'function') {
+                    window.showInternalNumberModal(internalNumber);
+                } else {
+                    console.error('Функция showInternalNumberModal не найдена');
+                }
+            } else {
+                console.log('Row clicked but data-internal-number attribute is missing');
+            }
+        });
+    });
+    console.log('Event listeners attached to table rows.');
+});

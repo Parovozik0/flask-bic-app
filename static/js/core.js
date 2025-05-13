@@ -5,22 +5,53 @@ let selectedCells = new Set(); // Global variable for selected cells
 
 // Clean null/undefined/none values
 function cleanValue(value) {
-    if (value === null || value === undefined || value.toLowerCase() === 'none') {
+    if (value === null || value === undefined) {
         return '';
     }
+    
+    // Проверяем, является ли value строкой перед вызовом toLowerCase
+    if (typeof value === 'string' && value.toLowerCase() === 'none') {
+        return '';
+    }
+    
     return value;
 }
 
 // Show notification with success/error message
 function showNotification(result) {
+    // Remove any existing notifications first
+    const existingNotification = document.getElementById('notification');
+    if (existingNotification) {
+        existingNotification.classList.remove('show');
+        existingNotification.remove();
+    }
+    
     const notification = document.createElement('div');
     notification.id = 'notification';
-    notification.className = `notification ${result.status === 'success' ? 'success' : 'error'}`;
+    
+    // Определяем класс уведомления в зависимости от статуса
+    let notificationClass = 'error';
+    if (result.status === 'success') {
+        notificationClass = 'success';
+    } else if (result.status === 'warning') {
+        notificationClass = 'warning'; // Новый класс для предупреждений
+    }
+    
+    notification.className = `notification ${notificationClass}`;
+    
     // Build notification content with truncated error list and toggle
     let content = `<div class="notification-content">
-        <h3>Результат</h3>
-        <p>Успешно: ${result.success}</p>
+        <h3>Результат</h3>`;
+    
+    // Если есть специальное сообщение, показываем его
+    if (result.message) {
+        content += `<p class="notification-message">${result.message}</p>`;
+    } else {
+        // Иначе показываем стандартную информацию
+        content += `<p>Успешно: ${result.success}</p>
         <p>Неудачно: ${result.failed}</p>`;
+    }
+    
     if (result.errors && result.errors.length) {
         const errors = result.errors;
         const threshold = 3;
