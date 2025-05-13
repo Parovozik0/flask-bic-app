@@ -30,7 +30,7 @@ if redis_url:
         app, 
         cors_allowed_origins="*",
         message_queue=redis_url,
-        async_mode='eventlet',
+        async_mode=None,  # Используем автоопределение вместо явного указания eventlet
         ping_timeout=60,
         ping_interval=25,
         engineio_logger=False,
@@ -40,7 +40,7 @@ else:
     socketio = SocketIO(
         app, 
         cors_allowed_origins="*",
-        async_mode='eventlet',
+        async_mode=None,  # Используем автоопределение вместо явного указания eventlet
         ping_timeout=60,
         ping_interval=25,
         engineio_logger=False,
