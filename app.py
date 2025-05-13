@@ -9,8 +9,12 @@ from sqlalchemy.exc import SQLAlchemyError
 import re
 import pandas as pd
 from flask_socketio import SocketIO, emit
-import redis
-from flask_session import Session
+try:
+    import redis
+    from flask_session import Session
+    redis_available = True
+except ImportError:
+    redis_available = False
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', os.urandom(24))
@@ -19,8 +23,9 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['DEBUG'] = False  # Disable debug in production
 
 # Configure Socket.IO with Redis for session persistence and reduced memory usage
+socketio = None
 redis_url = os.getenv('REDIS_URL')
-if redis_url:
+if redis_available and redis_url:
     app.config['SESSION_TYPE'] = 'redis'
     app.config['SESSION_REDIS'] = redis.from_url(redis_url)
     app.config['SESSION_PERMANENT'] = False
