@@ -1,5 +1,3 @@
-// Скрипт для управления внутренними номерами на странице Букинг
-
 console.log('Скрипт internal_numbers.js загружен');
 
 // Добавляем CSS стили для модального окна
@@ -11,273 +9,248 @@ function addModalStyles() {
 
     const styleElement = document.createElement('style');
     styleElement.id = 'internal-number-modal-styles';
-    
     styleElement.textContent = `
-        /* Стили для модального окна внутренних номеров - с !important для перекрытия других стилей */
-        #internal-number-details-modal {
-            display: none !important;
-            position: fixed !important;
-            z-index: 1000 !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            background-color: rgba(0, 0, 0, 0.5) !important;
-        }
-        
-        #internal-number-details-modal.show-modal {
-            display: block !important;
+        /* === GENERAL MODAL STYLES === */
+        #internal-number-details-modal,
+        #add-internal-number-modal,
+        #edit-bookings-modal {
+            display: none;
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+        }        #internal-number-details-modal {
+        }        #add-internal-number-modal {
+        }        #edit-bookings-modal {
+        }        #add-booking-modal {
+            background-color: transparent;
         }
 
+        /* === MODAL CONTENT CONTAINERS === */
         #internal-number-details-modal .internal-modal-content {
-            background-color: white !important;
-            padding: 20px !important;
-            border-radius: 8px !important;
-            width: 60% !important;
-            max-width: 800px !important;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
-            position: absolute !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) !important;
-        }
-
-        #internal-number-details-modal .internal-modal-header {
-            display: flex !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            border-bottom: 1px solid #ccc !important;
-            padding-bottom: 10px !important;
-            margin-bottom: 20px !important;
-        }
-
-        #internal-number-details-modal .internal-modal-header h2 {
-            margin: 0 !important;
-            color: #333 !important;
-        }
-
-        #internal-number-details-modal .internal-modal-close {
-            font-size: 28px !important;
-            font-weight: bold !important;
-            color: #aaa !important;
-            cursor: pointer !important;
-            transition: color 0.2s !important;
-        }
-
-        #internal-number-details-modal .internal-modal-close:hover {
-            color: #333 !important;
-        }
-
-        #internal-number-details-modal .internal-modal-body {
-            padding: 10px 0 !important;
-            max-height: 60vh !important;
-            overflow-y: auto !important;
-        }
-
-        #internal-number-details-modal .internal-modal-footer {
-            padding-top: 10px !important;
-            text-align: right !important;
-        }
-
-        #internal-number-details-modal button {
-            padding: 8px 16px !important;
-            background-color: #4CAF50 !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 4px !important;
-            cursor: pointer !important;
-            font-size: 14px !important;
-            margin-left: 10px !important;
-            transition: background-color 0.2s !important;
-        }
-
-        #internal-number-details-modal button.cancel {
-            background-color: #f44336 !important;
-        }
-
-        #internal-number-details-modal button:hover {
-            opacity: 0.9 !important;
-        }
-        
-        /* Стили для таблицы букингов внутри модального окна - в стиле таблицы импорта */
-        #internal-number-details-modal table {
-            border-collapse: collapse !important;
-            width: 100% !important;
-            background: #fff !important;
-            border-radius: 10px !important;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.15), 0 0 1px rgba(0,0,0,0.1) !important;
-            overflow: hidden !important;
-            margin-bottom: 10px !important;
-        }
-        
-        #internal-number-details-modal th {
-            background: #0D1B2A !important;
-            color: #fff !important;
-            font-size: 15px !important;
-            font-weight: 500 !important;
-            padding: 10px 8px !important;
-            text-align: center !important; 
-            position: sticky !important;
-            top: 0 !important;
-            z-index: 2 !important;
-            border-bottom: 1.5px solid #e0e0e0 !important;
-            vertical-align: bottom !important;
-            position: relative !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            white-space: nowrap !important;
-        }
-        
-        #internal-number-details-modal td {
-            padding: 7px 8px !important;
-            font-size: 14px !important;
-            border-bottom: 1px solid #f0f0f0 !important;
-            background: #fff !important; 
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            text-align: center !important;
-        }
-        
-        #internal-number-details-modal tr:nth-child(even) td {
-            background: #fff !important;
-        }
-        
-        #internal-number-details-modal tr:nth-child(odd) td {
-            background: #fff !important;
-        }
-        
-        #internal-number-details-modal td.custom-selected {
-            background-color: #e0f7fa !important;
-            border: 1px solid #81d4fa !important;
-            color: #111 !important;
-            transition: background-color 0.3s ease !important;
-            box-shadow: inset 0 0 2px #4fc3f7 !important;
-        }
-        
-        #internal-number-details-modal h3 {
-            margin-bottom: 10px !important;
-            font-size: 16px !important;
-            color: #333 !important;
-        }
-        
-        /* Стили для модального окна добавления внутреннего номера */
-        #add-internal-number-modal {
-            display: none !important;
-            position: fixed !important;
-            z-index: 1000 !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            background-color: rgba(0, 0, 0, 0.5) !important;
-        }
-        
-        #add-internal-number-modal.show-modal {
-            display: block !important;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 60%;
+            max-width: 800px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         #add-internal-number-modal .internal-modal-content {
-            background-color: white !important;
-            margin: 10% auto !important;
-            padding: 20px !important;
-            border-radius: 8px !important;
-            width: 400px !important;
-            max-width: 800px !important;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 800px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
 
-        #add-internal-number-modal .internal-modal-header {
-            display: flex !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            border-bottom: 1px solid #ccc !important;
-            padding-bottom: 10px !important;
-            margin-bottom: 20px !important;
+        #edit-bookings-modal .modal-content {
+            background-color: white;
+            margin: 0% auto;
+            border-radius: 10px;
+            width: 60%;
+            max-width: 800px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }        #add-booking-modal .modal-content {
+            width: 450px;
+            max-width: 800px;
         }
 
-        #add-internal-number-modal .internal-modal-header h2 {
-            margin: 0 !important;
-            color: #333 !important;
+        /* === MODAL HEADERS === */
+        .internal-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
         }
 
-        #add-internal-number-modal .internal-modal-close {
-            font-size: 28px !important;
-            font-weight: bold !important;
-            color: #aaa !important;
-            cursor: pointer !important;
-            transition: color 0.2s !important;
+        .internal-modal-header h2 {
+            margin: 0;
+            color: #333;
         }
 
-        #add-internal-number-modal .internal-modal-close:hover {
-            color: #333 !important;
+        .internal-modal-close {
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+            transition: color 0.2s;
         }
 
-        #add-internal-number-modal .internal-modal-body {
-            padding: 10px 0 !important;
+        .internal-modal-close:hover {
+            color: #333;
         }
 
-        #add-internal-number-modal .form-group {
-            margin-bottom: 15px !important;
+        /* === MODAL BODIES === */
+        .internal-modal-body {
+            padding: 10px 0;
         }
 
-        #add-internal-number-modal label {
-            display: block !important;
-            margin-bottom: 5px !important;
-            font-weight: 600 !important;
+        #internal-number-details-modal .internal-modal-body {
+            max-height: 60vh;
+            overflow-y: auto;
         }
 
-        #add-internal-number-modal input {
-            width: 100% !important;
-            padding: 8px !important;
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            box-sizing: border-box !important;
+        /* === MODAL FOOTERS === */
+        .internal-modal-footer {
+            padding-top: 10px;
+            text-align: right;
         }
 
         #add-internal-number-modal .internal-modal-footer {
-            padding-top: 15px !important;
-            border-top: 1px solid #ccc !important;
-            text-align: right !important;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
         }
 
-        #add-internal-number-modal button {
-            padding: 8px 16px !important;
-            background-color: #4CAF50 !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 4px !important;
-            cursor: pointer !important;
-            font-size: 14px !important;
-            margin-left: 10px !important;
-            transition: background-color 0.2s !important;
+        /* === TABLE STYLES === */
+        #internal-number-details-modal table,
+        #edit-bookings-modal table {
+            border-collapse: collapse;
+            width: 100%;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15), 0 0 1px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 10px;
         }
 
-        #add-internal-number-modal button.cancel {
-            background-color: #f44336 !important;
+        #internal-number-details-modal th,
+        #edit-bookings-modal th {
+            background: #0D1B2A;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 10px 8px;
+            text-align: center;
+            position: sticky;            top: 0;
+            border-bottom: 1.5px solid #e0e0e0;
+            vertical-align: bottom;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        #add-internal-number-modal button:hover {
-            opacity: 0.9 !important;
+        #edit-bookings-modal th {
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px;
+            border: 1px solid #ddd;
+            vertical-align: middle;
         }
-        
-        #add-internal-number-modal .error-message {
-            color: #f44336 !important;
-            font-size: 14px !important;
-            margin-top: 10px !important;
+
+        #internal-number-details-modal td,
+        #edit-bookings-modal td {
+            padding: 7px 8px;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+            background: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
         }
-        
-        /* Стиль для строк с ошибками */
-        #internal-number-details-modal .error-row {
+
+        #edit-bookings-modal td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            vertical-align: middle;
+        }
+
+        .custom-selected {
+            background-color: #e0f7fa !important;
+            border: 1px solid #2c2e2e !important;
+            color: #111;
+            transition: background-color 0.3s ease;
+        }
+
+        #edit-bookings-modal .custom-selected {
+            border-left: 2px solid #2c2e2e !important;
+        }
+
+        /* === INTERACTIVE ELEMENTS === */
+        button {
+            padding: 8px 16px;
+            background: #0A1F44;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+            transition: background-color 0.2s;
+        }
+
+        button.cancel {
+            background: #ccc;
+            color: #333;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        /* === UTILITY STYLES === */
+        .error-row {
             background-color: #ffdddd !important;
         }
-        
-        /* Стиль для пустых данных */
-        #internal-number-details-modal .empty-bookings-message {
-            padding: 20px !important;
-            text-align: center !important;
-            color: #888 !important;
-            background: #fff !important;
+
+        .empty-bookings-message {
+            padding: 20px;
+            text-align: center;
+            color: #888;
+            background: #fff;
+        }
+
+        .error-message {
+            color: #f44336;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        [contenteditable]:empty:before {
+            content: attr(data-placeholder);
+            color: #bbb;
+            pointer-events: none;
+        }
+
+        [contenteditable]:focus {
+            outline: none;
+            box-shadow: none;
+            caret-color: black;
         }
     `;
     
@@ -331,7 +304,7 @@ function createInternalNumberModal() {
                 </div>
             </div>            <div class="internal-modal-footer">
                 <div id="error-message"></div>
-                <button id="edit-internal-number-btn" style="background-color: #2196F3 !important;">Редактировать</button>
+                <button id="edit-internal-number-btn" class="save">Добавить букинг</button>
                 <button class="cancel">Отмена</button>
             </div>
         </div>
@@ -371,11 +344,15 @@ window.showInternalNumberModal = function(internalNumber) {
         // Загружаем букинги для выбранного внутреннего номера
         loadBookingsForInternalNumber(internalNumber);
         
-        // Добавляем обработчик для кнопки "Редактировать"
-        setupEditButtonHandler(internalNumber);
-        
-        // Отображаем модальное окно
-        modal.classList.add('show-modal');
+        // Заменяем обработчик кнопки "Добавить букинг" на открытие модального окна добавления букинга
+        const editBtn = document.getElementById('edit-internal-number-btn');
+        if (editBtn) {
+            editBtn.onclick = function() {
+                openAddBookingModal(internalNumber);
+            };
+        }
+          // Отображаем модальное окно
+        window.modalBackdropManager.openModal(modal);
     } else {
         console.error('Модальное окно не найдено');
     }
@@ -414,7 +391,7 @@ function closeInternalNumberModal() {
     console.log('Вызвана функция closeInternalNumberModal');
     const modal = document.getElementById('internal-number-details-modal');
     if (modal) {
-        modal.classList.remove('show-modal');
+        window.modalBackdropManager.closeModal(modal);
     }
 }
 
@@ -482,8 +459,82 @@ async function loadBookingsForInternalNumber(internalNumber) {
     }
 }
 
-// Отключаем закрытие модального окна при клике вне его области
-// Этот функционал был удален по запросу пользователя
+// Функция для создания модального окна добавления букинга (только одно поле)
+function createAddBookingModal() {
+    if (document.getElementById('add-booking-modal')) return;
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'add-booking-modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить букинги к <span id="add-to-internal-number"></span></h2>
+                <button class="close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="new-booking-numbers">Номера букингов</label>
+                    <textarea id="container-numbers" placeholder="Введите номера букингов, каждый на новой строке или через запятую" rows="5" required style="width:100%"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel">Отмена</button>
+                <button class="save">Добавить</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);    // Обработчики закрытия
+    modal.querySelector('.close').onclick = () => { window.modalBackdropManager.closeModal(modal); };
+    modal.querySelector('.cancel').onclick = () => { window.modalBackdropManager.closeModal(modal); };
+}
+
+// Функция для открытия модального окна добавления букинга
+function openAddBookingModal(internalNumber) {
+    createAddBookingModal();
+    const modal = document.getElementById('add-booking-modal');
+    document.getElementById('add-to-internal-number').textContent = internalNumber;    document.getElementById('container-numbers').value = '';
+
+    window.modalBackdropManager.openModal(modal);
+
+    // Обработчик сохранения
+    const saveBtn = modal.querySelector('.save');
+    saveBtn.onclick = function() {
+        const bookingNumbers = document.getElementById('container-numbers').value;
+        if (!bookingNumbers) {
+            window.showNotification({
+                status: 'error',
+                success: 0,
+                failed: 1,
+                errors: ['Введите хотя бы один номер букинга']
+            });
+            return;        }
+        
+        // Парсим введённые букинги (по запятой или по строкам)
+        const bookingsArr = bookingNumbers.split(/\n|,/).map(b => b.trim()).filter(Boolean).map(b => ({ booking: b }));
+        
+        window.modalBackdropManager.closeModal(modal);
+        openEditBookingsModal(bookingsArr);
+    };
+    
+    // Обработчики закрытия
+    modal.querySelector('.close').onclick = () => {
+        window.modalBackdropManager.closeModal(modal);
+    };
+    
+    modal.querySelector('.cancel').onclick = () => {
+        window.modalBackdropManager.closeModal(modal);
+    };
+    
+    // Закрытие по клику вне окна
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            window.modalBackdropManager.closeModal(modal);
+        }
+    };
+}
+
+// === МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ БУКИНГОВ ===
+// Функции для управления модальным окном редактирования букингов находятся в edit_bookings_modal.js
 
 // Module for handling internal numbers functionality
 window.internalNumbersModule = (function() {
@@ -503,16 +554,18 @@ window.internalNumbersModule = (function() {
                     <div class="form-group">
                         <label for="pod-direction">POD/Направление *</label>
                         <input type="text" id="pod-direction" placeholder="Введите POD/направление" required>
-                    </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pol-sending">POL/Отправка</label>
+                            <input type="text" id="pol-sending" placeholder="Введите POL/отправку">
+                        </div>
                     <div class="form-group">
-                        <label for="quantity">Количество</label>
+                        <label for="quantity">Количество *</label>
                         <input type="number" id="quantity" placeholder="Введите количество" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="cargo">Груз</label>
-                        <input type="text" id="cargo" placeholder="Введите тип груза">
-                    </div>
-                    <div class="form-group">
+                    </div>                    <div class="form-group">
+                        <label for="cargo">Груз *</label>
+                        <input type="text" id="cargo" placeholder="Введите тип груза" required>
+                    </div><div class="form-group">
                         <label for="type-size">Тип/Размер</label>
                         <select id="type-size" class="filter-input" style="height: 33px; padding: 8px; width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
                             <option value="">Выберите тип/размер</option>
@@ -529,13 +582,12 @@ window.internalNumbersModule = (function() {
                 </div>
             </div>
         </div>
-    `;
-
-    // Function to get current filter values
+    `;    // Function to get current filter values
     function getCurrentFilters() {
         return {
             internalNumber: document.getElementById('filter-internal-number')?.value.trim() || '',
             podDirection: document.getElementById('filter-pod-direction')?.value.trim() || '',
+            polSending: document.getElementById('filter-pol-sending')?.value.trim() || '',
             quantity: document.getElementById('filter-quantity')?.value.trim() || '',
             typeSize: document.getElementById('filter-type-size')?.value.trim() || '',
             cargo: document.getElementById('filter-cargo')?.value.trim() || ''
@@ -600,32 +652,20 @@ window.internalNumbersModule = (function() {
             tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Нет данных</td></tr>';
             return;
         }
-        
-        // Обновляем строки таблицы
+          // Обновляем строки таблицы
         tableBody.innerHTML = internalNumbers.map(item => `
             <tr class="internal-number-row" data-internal-number="${item.internal_number}" ondblclick="handleRowClick('${item.internal_number}')">
-                <td>${item.internal_number}</td>
-                <td>${item.quantity}</td>
-                <td>${item.type_size || ''}</td>
-                <td>${item.pod_direction}</td>
-                <td>${item.cargo || ''}</td>
-                <td>${item.booking_count}</td>
+                <td style="width: 120px; min-width: 120px; max-width: 120px;">${item.internal_number}</td>
+                <td style="width: 65px; min-width: 65px; max-width: 65px;">${item.quantity}</td>
+                <td style="width: 110px; min-width: 110px; max-width: 110px;">${item.type_size || ''}</td>
+                <td style="width: 160px; min-width: 160px; max-width: 160px;">${item.pol_sending || ''}</td>
+                <td style="width: 160px; min-width: 160px; max-width: 160px;">${item.pod_direction}</td>
+                <td style="width: 120px; min-width: 120px; max-width: 120px;">${item.cargo || ''}</td>
+                <td style="width: 120px; min-width: 120px; max-width: 120px;">${item.booking_count}</td>
             </tr>
         `).join('');
         
-        // Повторно добавляем обработчики событий для строк
-        const rows = tableBody.querySelectorAll('.internal-number-row');
-        rows.forEach(row => {
-            row.addEventListener('click', function() {
-                const internalNumber = this.getAttribute('data-internal-number');
-                if (internalNumber && typeof window.showInternalNumberModal === 'function') {
-                    window.showInternalNumberModal(internalNumber);
-                }
-            });
-            
-            // Добавляем визуальную подсказку, что на строку можно кликнуть
-            row.style.cursor = 'pointer';
-        });
+        // Повторно добавлять обработчики событий для строк не нужно — открытие модального окна теперь только по ondblclick (см. разметку строки)
     }
 
     // Helper function to show notifications
@@ -662,11 +702,9 @@ window.internalNumbersModule = (function() {
             top: 20px;
             right: 20px;
             background: ${statusClass === 'success' ? '#4CAF50' : '#f44336'};
-            color: white;
-            padding: 15px;
+            color: white;            padding: 15px;
             border-radius: 4px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            z-index: 1000;
             animation: fadeIn 0.3s, fadeOut 0.3s 3.7s;
             max-width: 300px;
         `;
@@ -695,35 +733,86 @@ window.internalNumbersModule = (function() {
         const addModal = document.getElementById('add-internal-modal');
         if (!addModal) return;
 
-        const closeButtons = addModal.querySelectorAll('.close, .cancel');
-        closeButtons.forEach(button => {
+        const closeButtons = addModal.querySelectorAll('.close, .cancel');        closeButtons.forEach(button => {
             button.onclick = () => {
-                addModal.style.display = 'none';
+                window.modalBackdropManager.closeModal(addModal);
             };
         });
 
+        // --- ДОБАВЛЕНО: автозаполнение по внутреннему номеру ---
+        const internalNumberInput = document.getElementById('internal-number');
+        if (internalNumberInput) {
+            let lastValue = '';
+            internalNumberInput.addEventListener('blur', async function() {
+                const value = this.value.trim();
+                if (value && value !== lastValue) {
+                    try {
+                        const response = await fetch('/get_internal_number_details', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: `internal_number=${encodeURIComponent(value)}`
+                        });                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.details) {
+                                document.getElementById('pod-direction').value = data.details.pod_direction || '';
+                                document.getElementById('quantity').value = data.details.quantity || '';
+                                document.getElementById('type-size').value = data.details.type_size || '';
+                                document.getElementById('cargo').value = data.details.cargo || '';
+                                document.getElementById('pol-sending').value = data.details.pol_sending || '';
+                            } else {
+                                // Очищаем поля, так как внутренний номер не найден
+                                document.getElementById('pod-direction').value = '';
+                                document.getElementById('quantity').value = '';
+                                document.getElementById('type-size').value = '';
+                                document.getElementById('cargo').value = '';
+                                document.getElementById('pol-sending').value = '';
+                            }
+                        }
+                    } catch (e) {
+                        // Не найден или ошибка — не заполняем
+                    }
+                    lastValue = value;
+                }
+            });
+        }
+        // --- КОНЕЦ ДОБАВЛЕНИЯ ---
+
         const saveButton = addModal.querySelector('.save');
-        if (saveButton) {
-            saveButton.onclick = async () => {
-                // Get input values
+        if (saveButton) {            saveButton.onclick = async () => {                // Get input values
                 const internalNumber = document.getElementById('internal-number').value.trim();
                 const podDirection = document.getElementById('pod-direction').value.trim();
                 const quantity = document.getElementById('quantity').value.trim();
-                const typeSize = document.getElementById('type-size').value.trim();
+                let typeSize = document.getElementById('type-size').value.trim();
+                // Если выбрано значение пустое или "Выберите тип/размер", устанавливаем пустую строку
+                // Сервер преобразует её в NULL для PostgreSQL
+                if (typeSize === "Выберите тип/размер" || typeSize === "") {
+                    typeSize = "";
+                }
                 const cargo = document.getElementById('cargo').value.trim();
-                
-                // Validate required fields
-                if (!internalNumber || !podDirection) {
+                  // Validate required fields
+                if (!internalNumber || !podDirection || !cargo) {
                     showNotification({
                         status: 'error',
                         success: 0,
                         failed: 1,
                         errors: ['Необходимо заполнить обязательные поля (отмечены *)']
                     });
-                    return;
-                }
-                
-                try {
+                    return;                }
+                  try {
+                    // Get the POL/Sending value
+                    const polSending = document.getElementById('pol-sending')?.value.trim() || '';
+                    
+                    // Show loading indicator or disable submit button
+                    const submitButton = document.querySelector('#addInternalNumberModal .submit-btn');
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                        submitButton.textContent = 'Отправка...';
+                    }
+                    
+                    // Send data to the server with timeout and retry logic
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                    
                     // Send data to the server
                     const response = await fetch('/add_internal_number', {
                         method: 'POST',
@@ -733,9 +822,20 @@ window.internalNumbersModule = (function() {
                             'pod_direction': podDirection,
                             'quantity': quantity,
                             'type_size': typeSize,
-                            'cargo': cargo
-                        })
+                            'cargo': cargo,
+                            'pol_sending': polSending
+                        }),
+                        signal: controller.signal,
+                        credentials: 'same-origin' // Include cookies
                     });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    // Reset button state
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Добавить';
+                    }
                     
                     // Проверяем успешность HTTP-ответа
                     if (!response.ok) {
@@ -769,10 +869,9 @@ window.internalNumbersModule = (function() {
                         // Это новый внутренний номер или другой тип успеха
                         showNotification(result);
                     }
-                    
-                    // Закрываем модальное окно и обновляем таблицу в любом случае
+                      // Закрываем модальное окно и обновляем таблицу в любом случае
                     if (result.status === 'success' && result.success > 0) {
-                        addModal.style.display = 'none';
+                        window.modalBackdropManager.closeModal(addModal);
                         // Обновляем таблицу
                         updateTable(getCurrentFilters());
                     }
@@ -786,36 +885,28 @@ window.internalNumbersModule = (function() {
                     });
                 }
             };
-        }
-
-        // Close the modal when clicking outside of it
+        }        // Close the modal when clicking outside of it
         window.addEventListener('click', (event) => {
             if (event.target === addModal) {
-                addModal.style.display = 'none';
+                window.modalBackdropManager.closeModal(addModal);
             }
         });
-    }
-
-    // Setup event handler for the "Add" button
+    }    // Setup event handler for the "Add" button
     function setupAddButton() {
-        const addButton = document.querySelector('.buttons .add');
-        if (addButton) {
+        const addButton = document.querySelector('.buttons .add');        if (addButton) {
             addButton.onclick = () => {
+                // Открываем модальное окно добавления/изменения внутреннего номера
                 const addModal = document.getElementById('add-internal-modal');
                 if (addModal) {
-                    // Reset form
-                    document.getElementById('internal-number').value = '';
-                    document.getElementById('pod-direction').value = '';
-                    document.getElementById('quantity').value = '';
-                    document.getElementById('type-size').value = '';
-                    document.getElementById('cargo').value = '';
-                    
-                    // Show modal
-                    addModal.style.display = 'block';
+                    window.modalBackdropManager.openModal(addModal);
+                } else {
+                    console.error('Модальное окно add-internal-modal не найдено');
                 }
             };
         }
-    }    // Setup filter event handlers
+    }
+
+    // Setup filter event handlers
     function setupFilterHandlers() {
         // Основной фильтр по внутреннему номеру
         const internalNumberFilter = document.getElementById('filter-internal-number');
@@ -882,81 +973,5 @@ function handleRowClick(internalNumber) {
     }
 }
 
-// Функция для настройки обработчика кнопки редактирования
-async function setupEditButtonHandler(internalNumber) {
-    const editButton = document.getElementById('edit-internal-number-btn');
-    if (!editButton) return;
-    
-    // Удаляем существующие обработчики
-    editButton.replaceWith(editButton.cloneNode(true));
-    const newEditButton = document.getElementById('edit-internal-number-btn');
-    
-    newEditButton.addEventListener('click', async function() {
-        console.log('Редактирование внутреннего номера:', internalNumber);
-        
-        try {
-            // Получаем данные о внутреннем номере для предзаполнения формы
-            const response = await fetch('/get_internal_number_details', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `internal_number=${encodeURIComponent(internalNumber)}`
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Ошибка HTTP: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            // Закрываем текущее модальное окно
-            closeInternalNumberModal();
-            
-            // Открываем модальное окно редактирования и заполняем его данными
-            openEditInternalNumberModal(data.details || {});
-        } catch (error) {
-            console.error('Ошибка при получении данных внутреннего номера:', error);
-            
-            // Показываем сообщение об ошибке
-            const errorMessage = document.getElementById('error-message');
-            if (errorMessage) {
-                errorMessage.textContent = `Ошибка: ${error.message}`;
-                errorMessage.style.color = 'red';
-                
-                // Скрываем сообщение через 3 секунды
-                setTimeout(() => {
-                    errorMessage.textContent = '';
-                }, 3000);
-            }
-        }
-    });
-}
-
-// Функция для открытия модального окна редактирования внутреннего номера
-function openEditInternalNumberModal(details) {
-    console.log('Открытие модального окна для редактирования внутреннего номера:', details);
-    
-    // Получаем модальное окно добавления внутреннего номера (оно же используется для редактирования)
-    const addModal = document.getElementById('add-internal-modal');
-    if (!addModal) {
-        console.error('Модальное окно add-internal-modal не найдено');
-        return;
-    }
-    
-    // Заполняем форму полученными данными
-    document.getElementById('internal-number').value = details.internal_number || '';
-    document.getElementById('pod-direction').value = details.pod_direction || '';
-    document.getElementById('quantity').value = details.quantity || '';
-    document.getElementById('type-size').value = details.type_size || '';
-    document.getElementById('cargo').value = details.cargo || '';
-    
-    // Меняем заголовок модального окна для отображения режима редактирования
-    const modalHeader = addModal.querySelector('.modal-header h2');
-    if (modalHeader) {
-        modalHeader.textContent = 'Редактировать внутренний номер';
-    }
-    
-    // Показываем модальное окно
-    addModal.style.display = 'block';
-}
+// Открытие модального окна по кнопке "Добавить" на странице букингов теперь
+// реализовано через internalNumbersModule.init()

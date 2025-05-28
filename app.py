@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()  # Monkey patch for eventlet support
+
 from flask import Flask, request, jsonify, render_template, url_for, redirect, flash
 import os
 from flask_sqlalchemy import SQLAlchemy
@@ -9,23 +12,30 @@ from sqlalchemy.exc import SQLAlchemyError
 import re
 import pandas as pd
 from flask_socketio import SocketIO, emit
-try:
-    import redis
-    from flask_session import Session
-    redis_available = True
-except ImportError:
-    redis_available = False
+import redis
+from flask_session import Session
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', os.urandom(24))
 app.config.from_object(Config)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.config['DEBUG'] = False  # Disable debug in production
+app.config['DEBUG'] = True  # Enable debug for development
+
+# Error handling for better logging
+@app.errorhandler(404)
+def not_found_error(error):
+    app.logger.error(f"404 error: {request.url}")
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f"500 error: {error}")
+    db.session.rollback()
+    return render_template('500.html'), 500
 
 # Configure Socket.IO with Redis for session persistence and reduced memory usage
-socketio = None
 redis_url = os.getenv('REDIS_URL')
-if redis_available and redis_url:
+if redis_url:
     app.config['SESSION_TYPE'] = 'redis'
     app.config['SESSION_REDIS'] = redis.from_url(redis_url)
     app.config['SESSION_PERMANENT'] = False
@@ -35,21 +45,21 @@ if redis_available and redis_url:
         app, 
         cors_allowed_origins="*",
         message_queue=redis_url,
-        async_mode=None,  # Используем автоопределение вместо явного указания eventlet
+        async_mode='eventlet',  # Explicitly use eventlet
         ping_timeout=60,
         ping_interval=25,
-        engineio_logger=False,
-        logger=False
+        engineio_logger=True,  # Enable logging for debugging
+        logger=True
     )
 else:
     socketio = SocketIO(
         app, 
         cors_allowed_origins="*",
-        async_mode=None,  # Используем автоопределение вместо явного указания eventlet
+        async_mode='eventlet',  # Explicitly use eventlet
         ping_timeout=60,
         ping_interval=25,
-        engineio_logger=False,
-        logger=False
+        engineio_logger=True,  # Enable logging for debugging
+        logger=True
     )
 
 print("SQLALCHEMY_DATABASE_URI:", app.config['SQLALCHEMY_DATABASE_URI'])
@@ -171,13 +181,13 @@ def buking():
             booking_count = db.session.query(Booking)\
                 .filter(Booking.internal_number == row.internal_number)\
                 .count()
-
             internal_numbers.append({
                 'internal_number': clean_value(row.internal_number),
                 'pod_direction': clean_value(row.pod_direction),
                 'quantity': row.quantity,
                 'type_size': clean_value(row.type_size),
                 'cargo': clean_value(row.cargo),
+                'pol_sending': clean_value(row.pol_sending),
                 'booking_count': booking_count
             })
         
@@ -1355,31 +1365,41 @@ def get_bookings_by_internal(internal_number):
 
 @app.route('/add_internal_number', methods=['POST'])
 def add_internal_number():
-    try:
-        # Получаем данные из формы
+    # Debug and logging information
+    app.logger.info("Received add_internal_number request")
+    app.logger.debug(f"Request form data: {request.form}")
+    
+    try:        # Получаем данные из формы
         internal_number = request.form.get('internal_number', '').strip()
         pod_direction = request.form.get('pod_direction', '').strip()
         quantity = request.form.get('quantity', '').strip()
         type_size = request.form.get('type_size', '').strip()
+        # Проверяем, если type_size пустой или "null", устанавливаем None для корректной работы с ENUM
+        if not type_size or type_size.lower() == "null":
+            type_size = None
         cargo = request.form.get('cargo', '').strip()
+        pol_sending = request.form.get('pol_sending', '').strip()
         
-        # Проверяем обязательные поля
-        if not internal_number or not pod_direction:
+        app.logger.debug(f"Processed form data: internal_number={internal_number}, pod_direction={pod_direction}")
+          # Проверяем обязательные поля
+        if not internal_number or not pod_direction or not cargo:
+            app.logger.warning("Missing required fields")
             return jsonify({
                 'success': 0,
                 'failed': 1,
-                'errors': ['Необходимо указать внутренний номер и POD/направление'],
+                'errors': ['Необходимо указать внутренний номер, POD/направление и груз'],
                 'status': 'error'
-            })
+            }), 400  # Bad request status code
         
         # Проверяем формат внутреннего номера (согласно ограничению в БД)
         if not re.match(r'^[A-Z0-9]+-[0-3][0-9][0-1][0-9][0-9]{4}$', internal_number):
+            app.logger.warning(f"Invalid internal number format: {internal_number}")
             return jsonify({
                 'success': 0,
                 'failed': 1,
                 'errors': ['Внутренний номер должен соответствовать формату XXXXX-DDMMYYYY'],
                 'status': 'error'
-            })
+            }), 400  # Bad request status code
         
         # Проверяем, существует ли уже такой внутренний номер
         existing_internal = db.session.query(InternalNumber).filter_by(internal_number=internal_number).first()
@@ -1390,6 +1410,7 @@ def add_internal_number():
             existing_internal.quantity = int(quantity) if quantity else 0
             existing_internal.type_size = type_size
             existing_internal.cargo = cargo
+            existing_internal.pol_sending = pol_sending
             db.session.commit()
             
             return jsonify({
@@ -1406,7 +1427,8 @@ def add_internal_number():
                 pod_direction=pod_direction,
                 quantity=int(quantity) if quantity else 0,
                 type_size=type_size,
-                cargo=cargo
+                cargo=cargo,
+                pol_sending=pol_sending
             )
             db.session.add(new_internal)
             db.session.commit()
@@ -1478,6 +1500,7 @@ def get_internal_numbers():
         # Получаем параметры фильтрации
         internal_number_filter = request.args.get('internal_number', '')
         pod_direction_filter = request.args.get('pod_direction', '')
+        pol_sending_filter = request.args.get('pol_sending', '')
         quantity_filter = request.args.get('quantity', '')
         type_size_filter = request.args.get('type_size', '')
         cargo_filter = request.args.get('cargo', '')
@@ -1490,6 +1513,8 @@ def get_internal_numbers():
             query = query.filter(InternalNumber.internal_number.ilike(f'%{internal_number_filter}%'))
         if pod_direction_filter:
             query = query.filter(InternalNumber.pod_direction.ilike(f'%{pod_direction_filter}%'))
+        if pol_sending_filter:
+            query = query.filter(InternalNumber.pol_sending.ilike(f'%{pol_sending_filter}%'))
         if quantity_filter:
             try:
                 quantity_int = int(quantity_filter)
@@ -1510,8 +1535,7 @@ def get_internal_numbers():
             if value is None or value == '' or value == "None":
                 return ''
             return value
-        
-        # Формируем ответ
+          # Формируем ответ
         internal_numbers = []
         for row in result:
             # Получаем количество букингов для текущего внутреннего номера
@@ -1525,6 +1549,7 @@ def get_internal_numbers():
                 'quantity': row.quantity,
                 'type_size': clean_value(row.type_size),
                 'cargo': clean_value(row.cargo),
+                'pol_sending': clean_value(row.pol_sending),
                 'booking_count': booking_count
             })
         
@@ -1540,38 +1565,67 @@ def get_internal_numbers():
 
 @app.route('/get_internal_number_details', methods=['POST'])
 def get_internal_number_details():
+    """
+    Получает детали внутреннего номера по его значению
+    """
+    app.logger.info("Received get_internal_number_details request")
+    app.logger.debug(f"Request form data: {request.form}")
+    
     try:
-        internal_number = request.form.get('internal_number', '')
+        # Получаем внутренний номер из запроса
+        internal_number = request.form.get('internal_number', '').strip()
+        
         if not internal_number:
-            return jsonify({'error': 'Внутренний номер не указан'}), 400
-            
-        # Ищем внутренний номер в базе
-        internal_number_obj = InternalNumber.query.filter_by(internal_number=internal_number).first()
+            return jsonify({
+                'success': 0,
+                'errors': ['Не указан внутренний номер'],
+                'status': 'error'
+            }), 400
+          # Ищем внутренний номер в базе данных
+        internal = db.session.query(InternalNumber).filter_by(internal_number=internal_number).first()
         
-        if not internal_number_obj:
-            return jsonify({'error': 'Внутренний номер не найден'}), 404
-            
-        # Функция для очистки значений
-        def clean_value(value):
-            if value is None or value == '' or value == "None":
-                return ''
-            return value
-            
-        # Формируем ответ с деталями внутреннего номера
-        details = {
-            'internal_number': clean_value(internal_number_obj.internal_number),
-            'pod_direction': clean_value(internal_number_obj.pod_direction),
-            'quantity': internal_number_obj.quantity,
-            'type_size': clean_value(internal_number_obj.type_size),
-            'cargo': clean_value(internal_number_obj.cargo)
-        }
+        if not internal:
+            # Возвращаем успешный ответ с пустыми данными вместо ошибки 404
+            return jsonify({
+                'success': 1,
+                'status': 'success',
+                'details': None
+            })
         
-        return jsonify({'details': details})
+        # Возвращаем данные внутреннего номера
+        return jsonify({
+            'success': 1,
+            'status': 'success',
+            'details': {
+                'internal_number': internal.internal_number,
+                'pod_direction': internal.pod_direction,
+                'quantity': internal.quantity,
+                'type_size': internal.type_size,
+                'cargo': internal.cargo,
+                'pol_sending': internal.pol_sending
+            }
+        })
+        
     except Exception as e:
-        app.logger.error(f'Ошибка при получении деталей внутреннего номера: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Error in get_internal_number_details: {str(e)}")
+        return jsonify({
+            'success': 0,
+            'errors': [f'Ошибка при получении данных: {str(e)}'],
+            'status': 'error'
+        }), 500
 
 if __name__ == '__main__':
+    # Create upload folder if needed
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
-    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
+        
+    app.logger.info("Starting application server...")
+    
+    try:
+        # Use eventlet as the web server with debug enabled
+        socketio.run(app, host='127.0.0.1', port=int(os.environ.get('PORT', 5000)), 
+                    debug=True, allow_unsafe_werkzeug=True)
+    except Exception as e:
+        app.logger.error(f"Failed to start the server: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())

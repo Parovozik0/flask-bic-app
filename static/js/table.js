@@ -6,18 +6,16 @@ async function updateTable(filters = {}) {
         'buking': '/get_internal_numbers'  // Новый эндпоинт для получения внутренних номеров в JSON
     };
     const endpoint = endpoints[currentPage];
-    const params = currentPage === 'container' ? `?option=${getContainerOption()}` : '';
-
-    function formatDateToISO(dateStr) {
+    const params = currentPage === 'container' ? `?option=${getContainerOption()}` : '';    function formatDateToISO(dateStr) {
         if (!dateStr) return '';
-        if (/^\d{2}\.\д{2}\.\д{4}$/.test(dateStr)) {
+        if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
             const [day, month, year] = dateStr.split('.');
             return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
         }
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) return '';
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    }    try {
+    }try {
         // Индикатор загрузки убран по требованию
         const loadingIndicator = document.createElement('div');
         loadingIndicator.style.display = 'none'; // Скрываем индикатор
@@ -67,29 +65,23 @@ async function updateTable(filters = {}) {
                             };
                         }
                     });
-                    
-                    // Воспроизводим точно такой же HTML формат как в исходном файле buking.html
+                      // Воспроизводим точно такой же HTML формат как в исходном файле buking.html
                     tbody.innerHTML = filteredItems.map(item => {
                         const oldStyle = oldStyles[item.internal_number] || {};
                         const isSelected = oldStyle.selected ? ' selected' : '';
                         return `<tr class="internal-number-row${isSelected}" data-internal-number="${item.internal_number}" ondblclick="handleRowClick('${item.internal_number}')">
-                    <td>${item.internal_number}</td>
-                    <td>${item.quantity}</td>
-                    <td>${item.type_size || ''}</td>
-                    <td>${item.pod_direction || ''}</td>
-                    <td>${item.cargo || ''}</td>
-                    <td>${item.booking_count || 0}</td>
+                    <td style="width: 120px; min-width: 120px; max-width: 120px;">${item.internal_number}</td>
+                    <td style="width: 65px; min-width: 65px; max-width: 65px;">${item.quantity}</td>
+                    <td style="width: 110px; min-width: 110px; max-width: 110px;">${item.type_size || ''}</td>
+                    <td style="width: 160px; min-width: 160px; max-width: 160px;">${item.pol_sending || ''}</td>
+                    <td style="width: 160px; min-width: 160px; max-width: 160px;">${item.pod_direction || ''}</td>
+                    <td style="width: 120px; min-width: 120px; max-width: 120px;">${item.cargo || ''}</td>
+                    <td style="width: 120px; min-width: 120px; max-width: 120px;">${item.booking_count || 0}</td>
                 </tr>`;
                     }).join('');
                 }
                   // Переинициализируем обработчики событий для строк
                 setupInternalNumberRows();
-                
-                // Дополнительно настраиваем курсор для строк, как при первичной загрузке
-                const rows = document.querySelectorAll('.internal-number-row');
-                rows.forEach(row => {
-                    row.style.cursor = 'pointer';
-                });
             } else {
                 // Для остальных страниц оставляем прежнюю логику
                 filteredItems = currentPage === 'container' ? data.containers :
@@ -469,107 +461,6 @@ function setupInternalNumberRows() {
         });
     });    // Добавляем обработчики к строкам с внутренними номерами
     const internalRows = document.querySelectorAll('.internal-number-row');
-    
-    internalRows.forEach(row => {
-        // Применяем стиль курсора
-        row.style.cursor = 'pointer';
-        
-        // Добавляем обработчик на клик
-        row.addEventListener('click', async function(event) {
-            // Предотвращаем всплытие события, чтобы избежать конфликтов
-            event.stopPropagation();
-            
-            const internalNumber = this.dataset.internalNumber;
-            if (!internalNumber) return;
-            
-            try {
-                console.log('Получаем информацию о букингах для внутреннего номера:', internalNumber);
-                
-                // Используем функцию showInternalNumberModal из internal_numbers.js, если она доступна
-                if (typeof window.showInternalNumberModal === 'function') {
-                    window.showInternalNumberModal(internalNumber);
-                    return; // Выходим, так как дальнейшая обработка будет в showInternalNumberModal
-                }
-                
-                // Запрос букингов для этого внутреннего номера
-                const response = await fetch('/get_bookings_by_internal_number', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ 'internal_number': internalNumber })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Проверка наличия элемента перед обновлением его содержимого
-                    const selectedInternalNumberElement = document.getElementById('selected-internal-number');
-                    if (selectedInternalNumberElement) {
-                        selectedInternalNumberElement.textContent = internalNumber;
-                    } else {
-                        console.warn('Элемент selected-internal-number не найден');
-                    }
-                    
-                    // Проверка наличия таблицы для букингов
-                    const bookingsTable = document.getElementById('internal-number-bookings');
-                    if (!bookingsTable) {
-                        console.warn('Элемент internal-number-bookings не найден');
-                        return;
-                    }
-                    
-                    bookingsTable.innerHTML = '';
-                    
-                    if (data.bookings && data.bookings.length > 0) {
-                        data.bookings.forEach(booking => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${booking.booking}</td>
-                                <td>${booking.line}</td>
-                                <td>${booking.quantity}</td>
-                                <td>${booking.vessel}</td>
-                            `;
-                            bookingsTable.appendChild(row);
-                        });
-                        
-                        // Если есть хотя бы один букинг, заполняем поля в модальном окне добавления букинга
-                        const sampleBooking = data.bookings[0];
-                        const bookingLineInput = document.getElementById('booking-line');
-                        const bookingQuantityInput = document.getElementById('booking-quantity');
-                        const bookingVesselInput = document.getElementById('booking-vessel');
-                        
-                        if (bookingLineInput) bookingLineInput.value = sampleBooking.line || '';
-                        if (bookingQuantityInput) bookingQuantityInput.value = sampleBooking.quantity || '';
-                        if (bookingVesselInput) bookingVesselInput.value = sampleBooking.vessel || '';
-                    } else {
-                        bookingsTable.innerHTML = '<tr><td colspan="4" style="text-align: center;">Нет связанных букингов</td></tr>';
-                    }
-                    
-                    // Добавляем обработчик для кнопки добавления букингов
-                    setupAddBookingButton(internalNumber, data.bookings[0]);
-                    
-                    // Показываем модальное окно
-                    internalDetailModal.style.display = 'block';
-                } else {
-                    showNotification({
-                        status: 'error',
-                        success: 0,
-                        failed: 1,
-                        errors: [data.error || 'Ошибка получения данных']
-                    });
-                }
-            } catch (error) {
-                console.error('Error fetching bookings:', error);
-                showNotification({
-                    status: 'error',
-                    success: 0,
-                    failed: 1,
-                    errors: ['Ошибка загрузки списка букингов']
-                });
-            }
-        });
-        
-        // Добавляем визуальную подсказку, что на строку можно кликнуть
-        row.style.cursor = 'pointer';
-    });
 }
 
 // Функция для настройки модального окна добавления букингов
@@ -578,8 +469,7 @@ function setupAddBookingButton(internalNumber, sampleBooking) {
     const addBookingModal = document.getElementById('add-booking-modal');
     
     if (!addBookingBtn || !addBookingModal) return;
-    
-    // Настраиваем кнопку открытия модального окна
+      // Настраиваем кнопку открытия модального окна
     addBookingBtn.onclick = function() {
         document.getElementById('add-to-internal-number').textContent = internalNumber;
         document.getElementById('new-booking-numbers').value = '';
@@ -591,14 +481,13 @@ function setupAddBookingButton(internalNumber, sampleBooking) {
             document.getElementById('booking-vessel').value = sampleBooking.vessel || '';
         }
         
-        addBookingModal.style.display = 'block';
+        window.modalBackdropManager.openModal(addBookingModal);
     };
-    
-    // Настраиваем кнопки закрытия
+      // Настраиваем кнопки закрытия
     const closeButtons = addBookingModal.querySelectorAll('.close, .cancel');
     closeButtons.forEach(btn => {
         btn.onclick = function() {
-            addBookingModal.style.display = 'none';
+            window.modalBackdropManager.closeModal(addBookingModal);
         };
     });
     
@@ -634,9 +523,8 @@ function setupAddBookingButton(internalNumber, sampleBooking) {
                         'vessel': vessel
                     })
                 });
-                
-                const result = await response.json();
-                addBookingModal.style.display = 'none';
+                  const result = await response.json();
+                window.modalBackdropManager.closeModal(addBookingModal);
                 
                 // Показываем уведомление о результате
                 showNotification(result);
@@ -685,11 +573,10 @@ function setupAddBookingButton(internalNumber, sampleBooking) {
             }
         };
     }
-    
-    // Закрытие по клику за пределами модального окна
+      // Закрытие по клику за пределами модального окна
     window.onclick = function(event) {
         if (event.target === addBookingModal) {
-            addBookingModal.style.display = 'none';
+            window.modalBackdropManager.closeModal(addBookingModal);
         }
     };
 }

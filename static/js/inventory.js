@@ -118,11 +118,10 @@ function setupInventoryModal() {
     if (!inventoryModal || !inventoryFile || !inventoryPreview) {
         console.warn('Inventory modal elements not found. Import functionality may not work correctly.');
         return;
-    }
-
-    if (inventoryButton && inventoryModal) {
+    }    if (inventoryButton && inventoryModal) {
         inventoryButton.onclick = () => {
-            inventoryModal.style.display = 'block';
+            // Use ModalBackdropManager to display the modal
+            window.modalBackdropManager.openModal(inventoryModal);
             inventoryPreview.innerHTML = '';
             inventoryColumnsSelect.innerHTML = '';
             inventoryFile.value = '';
@@ -131,8 +130,8 @@ function setupInventoryModal() {
             selectedColumns = [];
         };
     }
-    if (inventoryClose) inventoryClose.onclick = () => inventoryModal.style.display = 'none';
-    if (inventoryCancel) inventoryCancel.onclick = () => inventoryModal.style.display = 'none';
+    if (inventoryClose) inventoryClose.onclick = () => window.modalBackdropManager.closeModal(inventoryModal);
+    if (inventoryCancel) inventoryCancel.onclick = () => window.modalBackdropManager.closeModal(inventoryModal);
 
     if (inventoryFile) {
         inventoryFile.onchange = (e) => {
@@ -349,9 +348,8 @@ function setupInventoryModal() {
                 method: 'POST',
                 body: formData
             });
-            const result = await resp.json();
-            if (result.status === 'success') {
-                inventoryModal.style.display = 'none';
+            const result = await resp.json();            if (result.status === 'success') {
+                window.modalBackdropManager.closeModal(inventoryModal);
                 showNotification(result);
                 await updateTable(getCurrentFilters());
             } else {
@@ -363,14 +361,12 @@ function setupInventoryModal() {
                 });
             }
         };
-    }
-
-    // Global handler for closing inventory-modal when clicking outside
+    }    // Global handler for closing inventory-modal when clicking outside
     if (inventoryModal) {
         inventoryModal.addEventListener('mousedown', function(event) {
             const modalContent = inventoryModal.querySelector('.modal-content');
             if (modalContent && !modalContent.contains(event.target)) {
-                inventoryModal.style.display = 'none';
+                window.modalBackdropManager.closeModal(inventoryModal);
             }
         });
     }

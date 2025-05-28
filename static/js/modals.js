@@ -271,8 +271,8 @@ async function renderEditTable(items) {
             html += `
                 <tr>
                     <td style="padding: 0 10px">Все</td>
-                    <td contenteditable="true" class="kp-cell" data-placeholder="КП"></td>
-                    <td contenteditable="true" class="booking-cell" data-placeholder="Букинг"></td>
+                    <td contenteditable="true" class="kp-cell" data-placeholder="КП" title="КП"></td>
+                    <td contenteditable="true" class="booking-cell" data-placeholder="Букинг" title="Номер букинга"></td>
                     <td>
                         <select class="status-select" onchange="updateStatusSelectStyle(this)">
                             ${statusOptions.map(option => `<option value="${option.value}">${option.text}</option>`).join('')}
@@ -309,8 +309,8 @@ async function renderEditTable(items) {
                 html += `
                     <tr>
                         <td style="padding: 0 10px">${cleanValue(item.number)}</td>
-                        <td contenteditable="true" class="kp-cell">${cleanValue(item.KP)}</td>
-                        <td contenteditable="true" class="booking-cell">${cleanValue(item.booking)}</td>
+                        <td contenteditable="true" class="kp-cell" title="КП">${cleanValue(item.KP)}</td>
+                        <td contenteditable="true" class="booking-cell" title="Номер букинга">${cleanValue(item.booking)}</td>
                         <td>
                             <select class="status-select" onchange="updateStatusSelectStyle(this)">
                                 ${statusOptions.map(option => `
@@ -496,6 +496,25 @@ async function renderEditTable(items) {
             editPopup.style.display = 'none';
         }
     });
+
+    // Reposition popup on window resize
+    window.addEventListener('resize', () => {
+        if (editPopup.style.display === 'block' && editPopupText._linkedCell) {
+            const rect = editPopupText._linkedCell.getBoundingClientRect();
+            editPopup.style.left = `${rect.right + window.scrollX + 5}px`;
+            editPopup.style.top = `${rect.top + window.scrollY}px`;
+        }
+    });
+
+    // Hide edit-popup when scrolling the edit table
+    const tableWrapper = document.querySelector('.edit-table-wrapper');
+    if (tableWrapper) {
+        tableWrapper.addEventListener('scroll', () => {
+            if (editPopup.style.display === 'block') {
+                editPopup.style.display = 'none';
+            }
+        });
+    }
 
     if (currentPage === 'container') {
         const statusSelects = container.querySelectorAll('.status-select');
@@ -715,9 +734,8 @@ async function renderEditTable(items) {
                     errors: serverErrors,
                     status: 'error',
                     action: 'edit'
-                });
-            } else if (updatedCount > 0) {
-                document.getElementById('edit-data-modal').style.display = 'none';
+                });            } else if (updatedCount > 0) {
+                window.modalBackdropManager.closeModal(document.getElementById('edit-data-modal'));
                 showNotification({
                     success: updatedCount,
                     failed: failedCount,
@@ -752,12 +770,11 @@ function attachModalListeners() {
     const deleteSaveButton = deleteModal?.querySelector('.modal-footer .save');
     const editNextButton = editNumbersModal?.querySelector('.modal-footer .next');
 
-    if (addButton && addModal) addButton.onclick = () => addModal.style.display = 'block';
-    if (deleteButton && deleteModal) deleteButton.onclick = () => deleteModal.style.display = 'block';
-    if (editButton && editNumbersModal) editButton.onclick = () => editNumbersModal.style.display = 'block';
-
-    if (addModal) {
-        addCloseElements.forEach(el => el.onclick = () => addModal.style.display = 'none');
+    // Используем новый менеджер затемнения для открытия модальных окон
+    if (addButton && addModal) addButton.onclick = () => window.modalBackdropManager.openModal(addModal);
+    if (deleteButton && deleteModal) deleteButton.onclick = () => window.modalBackdropManager.openModal(deleteModal);
+    if (editButton && editNumbersModal) editButton.onclick = () => window.modalBackdropManager.openModal(editNumbersModal);    if (addModal) {
+        addCloseElements.forEach(el => el.onclick = () => window.modalBackdropManager.closeModal(addModal));
         if (addSaveButton) {
             addSaveButton.onclick = async () => {
                 if (currentPage === 'container') {
@@ -770,10 +787,9 @@ function attachModalListeners() {
                         body: new URLSearchParams({ [`${currentPage}_numbers`]: numbers })
                     });
                     const result = await response.json();
-                    addModal.style.display = 'none';
+                    window.modalBackdropManager.closeModal(addModal);
                     showNotification(result);
-                    if (result.success > 0) updateTable(getCurrentFilters());
-                } else if (currentPage === 'kp') {
+                    if (result.success > 0) updateTable(getCurrentFilters());                } else if (currentPage === 'kp') {
                     const textareaId = 'kp-numbers';
                     const numbers = document.getElementById(textareaId).value;
                     const endpoint = '/add_kp';
@@ -783,7 +799,7 @@ function attachModalListeners() {
                         body: new URLSearchParams({ [`${currentPage}_numbers`]: numbers })
                     });
                     const result = await response.json();
-                    addModal.style.display = 'none';
+                    window.modalBackdropManager.closeModal(addModal);
                     showNotification(result);
                     if (result.success > 0) updateTable(getCurrentFilters());
                 } else { // buking page (now only adds an internal number)
@@ -815,11 +831,10 @@ function attachModalListeners() {
                                 'type_size': typeSize
                             })
                         });
-                        
-                        // Обработка результата
+                          // Обработка результата
                         try {
                             const result = await response.json();
-                            addModal.style.display = 'none';
+                            window.modalBackdropManager.closeModal(addModal);
                             showNotification(result);
                             
                             // Вместо полной перезагрузки страницы используем асинхронное обновление таблицы
@@ -828,7 +843,7 @@ function attachModalListeners() {
                             }
                         } catch (e) {
                             // Если сервер вернул не JSON (например, редирект)
-                            addModal.style.display = 'none';
+                            window.modalBackdropManager.closeModal(addModal);
                             showNotification({
                                 status: 'error',
                                 success: 0,
@@ -844,15 +859,14 @@ function attachModalListeners() {
                             failed: 1,
                             errors: ['Ошибка при отправке данных на сервер']
                         });
-                        addModal.style.display = 'none';
+                        window.modalBackdropManager.closeModal(addModal);
                     }
                 }
             };
         }
     }
-    
-    if (deleteModal) {
-        deleteCloseElements.forEach(el => el.onclick = () => deleteModal.style.display = 'none');
+      if (deleteModal) {
+        deleteCloseElements.forEach(el => el.onclick = () => window.modalBackdropManager.closeModal(deleteModal));
         if (deleteSaveButton) {
             deleteSaveButton.onclick = async () => {
                 let textareaId, endpoint, paramName;
@@ -883,15 +897,13 @@ function attachModalListeners() {
                     body: new URLSearchParams({ [paramName]: numbers })
                 });
                 const result = await response.json();
-                deleteModal.style.display = 'none';
+                window.modalBackdropManager.closeModal(deleteModal);
                 showNotification(result);
                 if (result.success > 0) updateTable(getCurrentFilters());
             };
         }
-    }
-
-    if (editNumbersModal) {
-        editNumbersCloseElements.forEach(el => el.onclick = () => editNumbersModal.style.display = 'none');
+    }    if (editNumbersModal) {
+        editNumbersCloseElements.forEach(el => el.onclick = () => window.modalBackdropManager.closeModal(editNumbersModal));
         if (editNextButton) {
             editNextButton.onclick = async () => {
                 const textareaId = `edit-${currentPage}-numbers`;
@@ -932,10 +944,9 @@ function attachModalListeners() {
                         document.body.removeChild(loadingIndicator);
                         return;
                     }
-                    
-                    editItems = result[itemsKey];
-                    editNumbersModal.style.display = 'none';
-                    editDataModal.style.display = 'block';
+                      editItems = result[itemsKey];
+                    window.modalBackdropManager.closeModal(editNumbersModal);
+                    window.modalBackdropManager.openModal(editDataModal);
                     await renderEditTable(editItems);
                 } catch (error) {
                     console.error('Ошибка получения данных:', error);
@@ -951,22 +962,23 @@ function attachModalListeners() {
                 }
             };
         }
-    }
-
-    if (editDataModal) {
+    }    if (editDataModal) {
         editDataCloseElements.forEach(el => el.onclick = () => {
-            editDataModal.style.display = 'none';
+            window.modalBackdropManager.closeModal(editDataModal);
         });
         const checkbox = document.getElementById('same-data-checkbox');
         if (checkbox) checkbox.onchange = () => renderEditTable(editItems);
-    }
-
-    window.onclick = (event) => {
-        if (event.target === addModal) addModal.style.display = 'none';
-        else if (event.target === deleteModal) deleteModal.style.display = 'none';
-        else if (event.target === editNumbersModal) editNumbersModal.style.display = 'none';
-        else if (event.target === editDataModal) {
-            editDataModal.style.display = 'none';
+    }    // Объединяем обработку кликов за пределами модальных окон
+    window.onclick = function(event) {
+        // Проверяем клики по конкретным модальным окнам
+        if (event.target === addModal) {
+            window.modalBackdropManager.closeModal(addModal);
+        } else if (event.target === deleteModal) {
+            window.modalBackdropManager.closeModal(deleteModal);
+        } else if (event.target === editNumbersModal) {
+            window.modalBackdropManager.closeModal(editNumbersModal);
+        } else if (event.target === editDataModal) {
+            window.modalBackdropManager.closeModal(editDataModal);
         }
     };
 }

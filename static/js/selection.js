@@ -110,6 +110,10 @@ function attachTableCellListeners(tableSelector = '.table-container table') {
 
     headers.forEach((header, index) => {
         header.addEventListener('click', (e) => {
+            // The e.stopPropagation() in lines 9-10 for the 'container-type-select'
+            // already prevents this listener from firing if the SELECT itself is clicked.
+            // Therefore, if this listener fires, it means the TH area *outside* the SELECT was clicked,
+            // and we SHOULD select the column.
             e.preventDefault();
             clearSelection();
             const columnCells = Array.from(table.querySelectorAll(`tbody td:nth-child(${index + 1})`));

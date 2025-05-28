@@ -100,19 +100,15 @@ function showNotification(result) {
 function setupSocket() {
     if (window.socketIOInitialized) return;
     window.socketIOInitialized = true;
-    if (typeof io === 'undefined') {
-        console.error('Socket.IO client (io) is not loaded!');
+    
+    // Use the socket instance from socket_config.js if available
+    const socket = window.socketIO || null;
+    if (!socket) {
+        console.error('Socket.IO not initialized. Check socket_config.js');
         return;
     }
-    const socket = io({
-        transports: ['websocket', 'polling'],
-        upgrade: true,
-        pingTimeout: 60000, // 60 секунд
-        pingInterval: 25000 // 25 секунд
-    });
-    socket.on('connect', function() {
-        console.log('Socket.IO connected');
-    });
+    
+    // Register event listener for container updates
     socket.on('containers_updated', function(data) {
         console.log('Получено событие containers_updated:', data);
         window.currentPage = currentPage;

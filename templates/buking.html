@@ -15,9 +15,9 @@
                 </div>
                 <button class="filter" style="margin-left: 5px;" onclick="toggleFilter()">
                     <img src="{{ url_for('static', filename='pics/filter.png') }}" width="29" height="29" alt="Filter">
-                </button>
-                <div class="filter-container" id="filter-container">
+                </button>                <div class="filter-container" id="filter-container">
                     <input type="text" id="filter-pod-direction" placeholder="POD/Направление">
+                    <input type="text" id="filter-pol-sending" placeholder="POL/Отправка">
                     <input type="text" id="filter-quantity" placeholder="Количество">
                     <input type="text" id="filter-type-size" placeholder="Тип/Размер">
                     <input type="text" id="filter-cargo" placeholder="Груз">
@@ -27,28 +27,25 @@
         </div>
     </div>
     
-    <!-- Добавленная таблица внутренних номеров -->
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Внутренний номер</th>
-                    <th>Количество</th>
-                    <th>Тип/Размер</th>
-                    <th>POD/Направление</th>
-                    <th>Груз</th>
-                    <th>Количество коносаментов</th>
+    <!-- Добавленная таблица внутренних номеров -->    <div class="table-container">
+        <table>            <thead>                <tr>
+                    <th style="width: 120px; min-width: 120px; max-width: 120px;">Номер букинга</th>
+                    <th style="width: 65px; min-width: 65px; max-width: 65px;">Количество</th>
+                    <th style="width: 110px; min-width: 110px; max-width: 110px;">Тип/Размер</th>
+                    <th style="width: 160px; min-width: 160px; max-width: 160px;">POL/Отправка</th>
+                    <th style="width: 160px; min-width: 160px; max-width: 160px;">POD/Направление</th>
+                    <th style="width: 120px; min-width: 120px; max-width: 120px;">Груз</th>
+                    <th style="width: 120px; min-width: 120px; max-width: 120px;">Количество коносаментов</th>
                 </tr>
-            </thead>
-            <tbody>
-                {% for internal in internal_numbers %}
-                <tr class="internal-number-row" data-internal-number="{{ internal.internal_number }}" ondblclick="handleRowClick('{{ internal.internal_number }}')">
-                    <td>{{ internal.internal_number }}</td>
-                    <td>{{ internal.quantity }}</td>
-                    <td>{{ internal.type_size }}</td>
-                    <td>{{ internal.pod_direction }}</td>
-                    <td>{{ internal.cargo }}</td>
-                    <td>{{ internal.booking_count }}</td>
+            </thead>            <tbody>
+                {% for internal in internal_numbers %}                <tr class="internal-number-row" data-internal-number="{{ internal.internal_number }}" ondblclick="handleRowClick('{{ internal.internal_number }}')">
+                    <td style="width: 120px; min-width: 120px; max-width: 120px;">{{ internal.internal_number }}</td>
+                    <td style="width: 65px; min-width: 65px; max-width: 65px;">{{ internal.quantity }}</td>
+                    <td style="width: 110px; min-width: 110px; max-width: 110px;">{{ internal.type_size }}</td>
+                    <td style="width: 160px; min-width: 160px; max-width: 160px;">{{ internal.pol_sending }}</td>
+                    <td style="width: 160px; min-width: 160px; max-width: 160px;">{{ internal.pod_direction }}</td>
+                    <td style="width: 120px; min-width: 120px; max-width: 120px;">{{ internal.cargo }}</td>
+                    <td style="width: 120px; min-width: 120px; max-width: 120px;">{{ internal.booking_count }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -60,9 +57,6 @@
         <button class="delete">✖ Удалить</button>
         <button class="inventory">𖡤 Добавить из таблицы</button>
     </div>
-
-    <!-- Модальные окна -->
-    <!-- Уже существующие модальные окна (если есть) -->
 
     <!-- Модальное окно для удаления внутренних номеров -->
     <div class="modal" id="delete-modal">
@@ -80,6 +74,96 @@
                 <button class="save">Удалить</button>
             </div>
         </div>
+    </div>    
+    <div class="modal" id="add-internal-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Добавить/Изменить внутренний номер</h2>
+                    <button class="close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="internal-number">Внутренний номер *</label>
+                        <input type="text" id="internal-number" placeholder="Введите внутренний номер" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pod-direction">POD/Направление *</label>
+                        <input type="text" id="pod-direction" placeholder="Введите POD/направление" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pol-sending">POL/Отправка</label>
+                        <input type="text" id="pol-sending" placeholder="Введите POL/отправка" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="quantity">Количество</label>
+                        <input type="number" id="quantity" placeholder="Введите количество" min="0">
+                    </div>                    <div class="form-group">
+                        <label for="cargo">Груз *</label>
+                        <input type="text" id="cargo" placeholder="Введите тип груза" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="type-size">Тип/Размер</label>
+                        <select id="type-size" class="filter-input" style="height: 33px; padding: 8px; width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Выберите тип/размер</option>
+                            <option value="20COC">20COC</option>
+                            <option value="20SOC">20SOC</option>
+                            <option value="40COC">40COC</option>
+                            <option value="40SOC">40SOC</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="cancel">Отмена</button>
+                    <button class="save">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    <div class="modal" id="edit-bookings-modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Редактирование букингов</h2>
+                <button class="close">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="edit-bookings-error-message" class="error-message"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel">Отмена</button>
+                <button class="save">Сохранить</button>
+            </div>
+        </div>
+        <!-- Стилизация и JS-логика реализованы в edit_bookings_modal.js и edit_booking_selection.js -->
     </div>
 </div>
+
+<style>
+    #edit-bookings-modal {
+        z-index: 1100 !important;
+        position: fixed !important;
+    }
+    #delete-modal {
+        z-index: 1000;
+        position: fixed;
+    }
+    
+    /* Стили для таблицы в модальном окне редактирования букингов */
+    .edit-bookings-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+    }
+    
+    .edit-bookings-table th,
+    .edit-bookings-table td {
+        padding: 8px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+    
+    .error-message {
+        color: #f44336;
+        margin: 10px 0;
+        font-weight: 500;
+    }
+</style>
 {% endblock %}

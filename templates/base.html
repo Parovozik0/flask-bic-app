@@ -8,13 +8,16 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base_style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Socket.IO client library (loaded early to ensure availability) -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('Handsontable available:', typeof Handsontable !== 'undefined');
+            console.log('Libraries loaded check:');
+            console.log('- Handsontable available:', typeof Handsontable !== 'undefined');
+            console.log('- Socket.IO available:', typeof io !== 'undefined');
         });
     </script>
 </head>
@@ -44,19 +47,25 @@
     <div id="edit-notes-popup" class="notes-popup edit-notes-popup">
         <textarea id="edit-notes-popup-text"></textarea>
     </div>
-    {% endblock %}
-
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <!-- Include all JavaScript files in the correct dependency order -->
-    <script src="{{ url_for('static', filename='js/internal_numbers.js') }}"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="{{ url_for('static', filename='js/core.js') }}"></script>
+    {% endblock %}    <!-- Include all JavaScript files in the correct dependency order -->
+    <!-- Socket configuration must be loaded first -->    <script src="{{ url_for('static', filename='js/socket_config.js') }}"></script>    <script src="{{ url_for('static', filename='js/core.js') }}"></script>
     <script src="{{ url_for('static', filename='js/navigation.js') }}"></script>
+    <!-- Modal backdrop manager must be loaded before modals.js -->
+    <script src="{{ url_for('static', filename='js/modal_backdrop_manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/table.js') }}"></script>
     <script src="{{ url_for('static', filename='js/selection.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/edit_booking_selection.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/edit_bookings_modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/internal_numbers_styles.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modals.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/internal_numbers.js') }}"></script>
     <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Prevent duplicate loading of XLSX library -->
+    <script>
+        if (typeof XLSX === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');
+        }
+    </script>
 </body>
 </html>

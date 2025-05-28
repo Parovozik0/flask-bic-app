@@ -64,8 +64,9 @@ class InternalNumber(db.Model):
     internal_number = db.Column(db.String(20), primary_key=True, nullable=False)
     pod_direction = db.Column(db.String(100), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
-    type_size = db.Column(type_size)
-    cargo = db.Column(db.Text)
+    type_size = db.Column(type_size, nullable=True)
+    cargo = db.Column(db.Text, nullable=False)
+    pol_sending = db.Column(db.String(100))
     
     # Updated constraint to match PostgreSQL schema
     __table_args__ = (
